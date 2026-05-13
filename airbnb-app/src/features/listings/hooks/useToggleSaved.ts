@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
+import type { Listing } from '../types';
 
 const SAVED_KEY = 'airbnb-saved';
+const SAVED_LISTINGS_KEY = 'airbnb-saved-listings';
+
+export type SavedListingSnapshot = Pick<
+  Listing,
+  'id' | 'title' | 'location' | 'price' | 'img'
+>;
 
 function readSavedLocal(): string[] {
   try {
@@ -16,6 +23,53 @@ function readSavedLocal(): string[] {
 
 function writeSavedLocal(ids: string[]) {
   localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
+}
+
+export function readSavedListingSnapshots(): SavedListingSnapshot[] {
+  try {
+    const raw = localStorage.getItem(SAVED_LISTINGS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item): item is SavedListingSnapshot =>
+        Boolean(item?.id && item?.title && item?.location && item?.img),
+      )
+      .map((item) => ({
+        id: String(item.id),
+        title: String(item.title),
+        location: String(item.location),
+        price: Number(item.price) || 0,
+        img: String(item.img),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedListingSnapshots(listings: SavedListingSnapshot[]) {
+  localStorage.setItem(SAVED_LISTINGS_KEY, JSON.stringify(listings));
+}
+
+export function rememberSavedListing(listing: Listing) {
+  const snapshots = readSavedListingSnapshots();
+  const next: SavedListingSnapshot = {
+    id: listing.id,
+    title: listing.title,
+    location: listing.location,
+    price: listing.price,
+    img: listing.img,
+  };
+
+  writeSavedListingSnapshots([
+    next,
+    ...snapshots.filter((item) => item.id !== listing.id),
+  ]);
+}
+
+function forgetSavedListing(id: string) {
+  writeSavedListingSnapshots(readSavedListingSnapshots().filter((item) => item.id !== id));
 }
 
 export function useSaved() {
@@ -49,6 +103,7 @@ export function useToggleSaved() {
         : [...previous, id];
       queryClient.setQueryData(['saved'], next);
       writeSavedLocal(next);
+      if (!next.includes(id)) forgetSavedListing(id);
       return { previous };
     },
     onError: (_error, _id, context) => {

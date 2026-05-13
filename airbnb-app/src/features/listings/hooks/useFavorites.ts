@@ -1,9 +1,10 @@
 import toast from 'react-hot-toast';
 import { useStore } from '../../../store/StoreContext';
-import { useSaved, useToggleSaved } from './useToggleSaved';
+import type { Listing } from '../types';
+import { rememberSavedListing, useSaved, useToggleSaved } from './useToggleSaved';
 
 interface UseFavoritesReturn {
-  toggle: (id: string, title: string) => void;
+  toggle: (id: string, title: string, listing?: Listing) => void;
   isSaved: (id: string) => boolean;
   count: number;
 }
@@ -15,8 +16,9 @@ export function useFavorites(): UseFavoritesReturn {
 
   const isSaved = (id: string): boolean => savedIds.includes(id);
 
-  const toggle = (id: string, title: string): void => {
+  const toggle = (id: string, title: string, listing?: Listing): void => {
     const saving = !isSaved(id);
+    if (saving && listing) rememberSavedListing(listing);
     toggleSaved.mutate(id);
 
     // keep existing dashboard/store behavior in sync during migration

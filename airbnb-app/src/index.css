@@ -172,6 +172,26 @@ iframe[src*="drift"] {
   height: 0 !important;
 }
 
+/* Listing cards should only show the real photo, status badges, and heart button.
+   This removes browser/extension/template sticker overlays that can appear on photos. */
+[data-listing-image] > :not(img):not(button):not([data-listing-badge]):not([data-listing-control]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+[data-listing-image] img[src*="palm"],
+[data-listing-image] img[src*="tree"],
+[data-listing-image] img[src*="tropical"],
+[data-listing-image] img[src*="island"],
+[data-listing-image] img[alt*="palm"],
+[data-listing-image] img[alt*="tree"],
+[data-listing-image] img[alt*="tropical"],
+[data-listing-image] img[alt*="island"] {
+  display: none !important;
+}
+
 /* Ensure our chatbox is always visible and on top */
 button[title="Chat with AI Assistant"],
 div[style*="z-index: 999"] {

@@ -2,7 +2,7 @@ import React from 'react';
 import { Transition } from '@headlessui/react';
 import { FiHeart, FiMapPin, FiX, FiExternalLink } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { useSaved } from '../hooks/useToggleSaved';
+import { readSavedListingSnapshots, useSaved } from '../hooks/useToggleSaved';
 import { useListings } from '../hooks/useListings';
 
 interface Props {
@@ -24,18 +24,17 @@ export function SavedListings({ open, onClose, dark = false }: Props) {
     }
   }, [open, refetchSaved, refetchListings]);
 
-  // Match saved IDs against real API listings
-  const savedListings = allListings.filter((l) => savedIds.includes(l.id));
+  const savedListings = React.useMemo(() => {
+    const apiMatches = allListings.filter((listing) => savedIds.includes(listing.id));
+    const apiIds = new Set(apiMatches.map((listing) => listing.id));
+    const snapshots = readSavedListingSnapshots().filter(
+      (listing) => savedIds.includes(listing.id) && !apiIds.has(listing.id),
+    );
 
-  // Debug logging
-  console.log('SavedListings Debug:', {
-    savedIds,
-    allListingsCount: allListings.length,
-    savedListingsCount: savedListings.length,
-    firstSavedId: savedIds[0],
-    firstListingId: allListings[0]?.id,
-    sampleListingIds: allListings.slice(0, 3).map(l => l.id),
-  });
+    return [...apiMatches, ...snapshots].sort(
+      (a, b) => savedIds.indexOf(a.id) - savedIds.indexOf(b.id),
+    );
+  }, [allListings, savedIds]);
 
   const bg     = dark ? '#1e293b' : 'white';
   const border = dark ? '#334155' : '#f0f0f0';

@@ -109,6 +109,21 @@ export default function App() {
           width: 0 !important;
           height: 0 !important;
         }
+
+        [data-listing-image] > :not(img):not(button):not([data-listing-badge]):not([data-listing-control]),
+        [data-listing-image] img[src*="palm"],
+        [data-listing-image] img[src*="tree"],
+        [data-listing-image] img[src*="tropical"],
+        [data-listing-image] img[src*="island"],
+        [data-listing-image] img[alt*="palm"],
+        [data-listing-image] img[alt*="tree"],
+        [data-listing-image] img[alt*="tropical"],
+        [data-listing-image] img[alt*="island"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
       `}</style>
       <Suspense fallback={<Spinner />}>
       <Routes>

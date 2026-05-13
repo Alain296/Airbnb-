@@ -47,18 +47,20 @@ export const ListingCard = memo(function ListingCard({
     >
       {/* Image area */}
       <div className={styles.imageWrap}
+        data-listing-image
         style={{ width: viewMode === 'list' ? 240 : '100%', height: viewMode === 'list' ? 180 : 220 }}>
         <img src={listing.img} alt={listing.title} className={styles.image}
           crossOrigin="anonymous"
           onError={e => ((e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}/400/260`)} />
 
         {listing.superhost && (
-          <div className={styles.badgeSuperhost}>
+          <div className={styles.badgeSuperhost} data-listing-badge>
             <FiAward size={11} style={{ marginRight: 4 }} /> SUPERHOST
           </div>
         )}
 
         <div className={styles.badgeAvailable}
+          data-listing-badge
           style={{ background: listing.available ? '#22c55e' : '#ef4444',
             display: 'flex', alignItems: 'center', gap: 4 }}>
           {listing.available
@@ -67,7 +69,8 @@ export const ListingCard = memo(function ListingCard({
         </div>
 
         <button className={styles.heartBtn}
-          onClick={e => { e.stopPropagation(); toggle(listing.id, listing.title); }}
+          data-listing-control
+          onClick={e => { e.stopPropagation(); toggle(listing.id, listing.title, listing); }}
           aria-label={saved ? 'Remove from saved' : 'Save listing'}>
           <FiHeart size={16} fill={saved ? '#ff5722' : 'none'} color={saved ? '#ff5722' : '#666'} />
         </button>
