@@ -124,6 +124,13 @@ export default function App() {
           opacity: 0 !important;
           pointer-events: none !important;
         }
+
+        [data-listing-card] img:not([data-listing-photo]) {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
       `}</style>
       <Suspense fallback={<Spinner />}>
       <Routes>

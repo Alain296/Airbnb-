@@ -192,6 +192,15 @@ iframe[src*="drift"] {
   display: none !important;
 }
 
+/* Some browser/template helpers inject sticker images deeper inside the card.
+   Keep only the listing photo/avatar images that the React component marks. */
+[data-listing-card] img:not([data-listing-photo]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Ensure our chatbox is always visible and on top */
 button[title="Chat with AI Assistant"],
 div[style*="z-index: 999"] {

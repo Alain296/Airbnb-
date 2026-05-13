@@ -43,6 +43,7 @@ export const ListingCard = memo(function ListingCard({
         listing.superhost && styles.cardSuperhost,
         viewMode === 'list' && styles.cardList,
       )}
+      data-listing-card
       style={dark ? { background: '#1e293b', borderColor: listing.superhost ? '#f59e0b' : '#334155' } : undefined}
     >
       {/* Image area */}
@@ -50,6 +51,7 @@ export const ListingCard = memo(function ListingCard({
         data-listing-image
         style={{ width: viewMode === 'list' ? 240 : '100%', height: viewMode === 'list' ? 180 : 220 }}>
         <img src={listing.img} alt={listing.title} className={styles.image}
+          data-listing-photo
           crossOrigin="anonymous"
           onError={e => ((e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}/400/260`)} />
 
@@ -106,6 +108,7 @@ export const ListingCard = memo(function ListingCard({
 
         <div className={styles.hostStrip} style={dark ? { background: '#0f172a' } : undefined}>
           <img src={listing.profileImg} alt={listing.hostName} className={styles.hostAvatar}
+            data-listing-photo
             crossOrigin="anonymous"
             onError={e => ((e.target as HTMLImageElement).src = `https://i.pravatar.cc/50?u=${listing.id}`)} />
           <div>
