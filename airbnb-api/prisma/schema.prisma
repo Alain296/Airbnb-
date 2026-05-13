@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  HOST
+  GUEST
+  ADMIN
+}
+
+enum ListingType {
+  APARTMENT
+  HOUSE
+  VILLA
+  CABIN
+  CONDO
+  STUDIO
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum CancellationPolicy {
+  FLEXIBLE
+  MODERATE
+  STRICT
+  NON_REFUNDABLE
+  LONG_TERM
+}
+
+model User {
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  username         String    @unique
+  phone            String
+  password         String    @default("")
+  role             Role      @default(GUEST)
+  isSuspended      Boolean   @default(false)
+  avatar           String?
+  avatarPublicId   String?
+  bio              String?
+  // OAuth
+  googleId         String?   @unique
+  provider         String?   @default("local") // "local" | "google"
+  // MFA / TOTP
+  mfaEnabled       Boolean   @default(false)
+  mfaSecret        String?   // encrypted TOTP secret
+  mfaBackupCodes   String[]  @default([])
+  // Password reset
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+  listings         Listing[]
+  bookings         Booking[]
+  reviews          Review[]
+
+  @@index([name])
+  @@index([role])
+  @@index([isSuspended])
+  @@index([googleId])
+}
+
+model Listing {
+  id                 String              @id @default(uuid())
+  title              String
+  description        String
+  location           String
+  pricePerNight      Float
+  weekendPrice       Float?
+  weeklyDiscount     Float?              // percentage e.g. 10 = 10%
+  monthlyDiscount    Float?              // percentage e.g. 20 = 20%
+  extraGuestFee      Float?              // fee per extra guest above base
+  baseGuests         Int?                // guests included in base price
+  guests             Int
+  type               ListingType
+  amenities          String[]
+  rating             Float?
+  isPublished        Boolean             @default(true)
+  cancellationPolicy CancellationPolicy  @default(FLEXIBLE)
+  minNights          Int                 @default(1)
+  maxNights          Int?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  host               User                @relation(fields: [hostId], references: [id], onDelete: Restrict)
+  hostId             String
+  bookings           Booking[]
+  photos             ListingPhoto[]
+  reviews            Review[]
+  blockedDates       BlockedDate[]
+
+  @@index([hostId])
+  @@index([location])
+  @@index([type])
+  @@index([pricePerNight])
+  @@index([guests])
+  @@index([isPublished])
+}
+
+model BlockedDate {
+  id        String   @id @default(uuid())
+  date      DateTime
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+  createdAt DateTime @default(now())
+
+  @@unique([listingId, date])
+  @@index([listingId])
+  @@index([date])
+}
+
+model Booking {
+  id         String        @id @default(uuid())
+  checkIn    DateTime
+  checkOut   DateTime
+  totalPrice Float
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  guest      User          @relation(fields: [guestId], references: [id], onDelete: Restrict)
+  guestId    String
+  listing    Listing       @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  listingId  String
+
+  @@index([guestId])
+  @@index([listingId])
+  @@index([status])
+  @@index([checkIn])
+  @@index([checkOut])
+}
+
+model ListingPhoto {
+  id        String   @id @default(uuid())
+  url       String
+  publicId  String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId String
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id             String   @id @default(uuid())
+  rating         Int      // 1-5 stars
+  comment        String
+  hostResponse   String?  // host's public reply to this review
+  hostRespondedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId      String
+
+  @@index([userId])
+  @@index([listingId])
+  @@index([rating])
+}

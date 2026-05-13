@@ -1,0 +1,76 @@
+import { Listing } from '../features/listings/types';
+
+export const listings: Listing[] = [
+  {
+    id: 1,
+    title: "Luxury Beachfront Villa",
+    location: "Malibu, California",
+    price: 450,
+    rating: 4.95,
+    superhost: true,
+    available: true,
+    availableFrom: "2025-01-15",
+    img: "https://images.unsplash.com/photo-1520637836862-4d197d17c90a?w=400&h=260&fit=crop",
+    category: "beach"
+  },
+  {
+    id: 2,
+    title: "Cozy Mountain Cabin",
+    location: "Aspen, Colorado",
+    price: 280,
+    rating: 4.87,
+    superhost: false,
+    available: true,
+    availableFrom: "2025-01-20",
+    img: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=260&fit=crop",
+    category: "mountain"
+  },
+  {
+    id: 3,
+    title: "Modern City Loft",
+    location: "New York, NY",
+    price: 320,
+    rating: 4.72,
+    superhost: true,
+    available: false,
+    availableFrom: "2025-02-01",
+    img: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=260&fit=crop",
+    category: "city"
+  },
+  {
+    id: 4,
+    title: "Rustic Countryside Cottage",
+    location: "Tuscany, Italy",
+    price: 195,
+    rating: 4.91,
+    superhost: false,
+    available: true,
+    availableFrom: "2025-01-18",
+    img: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=260&fit=crop",
+    category: "countryside"
+  },
+  {
+    id: 5,
+    title: "Oceanview Penthouse",
+    location: "Miami Beach, Florida",
+    price: 520,
+    rating: 4.98,
+    superhost: true,
+    available: true,
+    availableFrom: "2025-01-25",
+    img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400&h=260&fit=crop",
+    category: "beach"
+  },
+  {
+    id: 6,
+    title: "Downtown Studio Apartment",
+    location: "San Francisco, CA",
+    price: 180,
+    rating: 4.65,
+    superhost: false,
+    available: false,
+    availableFrom: "2025-02-10",
+    img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=260&fit=crop",
+    category: "city"
+  }
+];

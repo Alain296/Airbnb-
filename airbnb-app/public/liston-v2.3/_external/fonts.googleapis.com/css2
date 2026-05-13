@@ -1,0 +1,35 @@
+@font-face {
+  font-family: 'Wix Madefor Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/wixmadefordisplay/v12/SZcS3EX9IbbyeJ8aOluD52KXgUA_7Ed1I13G853Cp9duUYFhYltk.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Wix Madefor Display';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/wixmadefordisplay/v12/SZcS3EX9IbbyeJ8aOluD52KXgUA_7Ed1I13G853Cp9duUYFTYltk.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Wix Madefor Display';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/wixmadefordisplay/v12/SZcS3EX9IbbyeJ8aOluD52KXgUA_7Ed1I13G853Cp9duUYG_ZVtk.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Wix Madefor Display';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/wixmadefordisplay/v12/SZcS3EX9IbbyeJ8aOluD52KXgUA_7Ed1I13G853Cp9duUYGGZVtk.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Wix Madefor Display';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/wixmadefordisplay/v12/SZcS3EX9IbbyeJ8aOluD52KXgUA_7Ed1I13G853Cp9duUYHhZVtk.ttf) format('truetype');
+}
