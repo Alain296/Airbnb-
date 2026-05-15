@@ -7,7 +7,7 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
  * because multipart/form-data must NOT have a Content-Type header set manually
  * (the browser sets it automatically with the correct boundary).
  */
-async function uploadPhotos(listingId: string, files: File[]) {
+export async function uploadListingPhotosRequest(listingId: string, files: File[]) {
   const token = localStorage.getItem('token');
   const formData = new FormData();
   files.forEach((file) => formData.append('photos', file));
@@ -41,7 +41,7 @@ async function deletePhoto(listingId: string, photoId: string) {
 export function useUploadListingPhotos(listingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (files: File[]) => uploadPhotos(listingId, files),
+    mutationFn: (files: File[]) => uploadListingPhotosRequest(listingId, files),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['listing', listingId] });
       qc.invalidateQueries({ queryKey: ['listings', 'mine'] });

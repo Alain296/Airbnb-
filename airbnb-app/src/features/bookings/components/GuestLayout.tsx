@@ -25,12 +25,12 @@ export function GuestLayout({ children, title, subtitle, action }: Props) {
           {/* Page top bar */}
           <div style={{
             background: 'white', borderBottom: '1px solid #f0f0f0',
-            padding: '16px 28px', display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', position: 'sticky', top: 64, zIndex: 9,
+            padding: '18px 32px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 9,
           }}>
             <div>
-              {title    && <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#1a1a1a' }}>{title}</h1>}
-              {subtitle && <p style={{ margin: 0, fontSize: 13, color: '#9ca3af' }}>{subtitle}</p>}
+              {title    && <h1 style={{ margin: 0, fontSize: 20, lineHeight: 1.3, fontWeight: 800, color: '#1a1a1a' }}>{title}</h1>}
+              {subtitle && <p style={{ margin: '2px 0 0', fontSize: 13, lineHeight: 1.35, color: '#9ca3af' }}>{subtitle}</p>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {action}
@@ -44,7 +44,7 @@ export function GuestLayout({ children, title, subtitle, action }: Props) {
           </div>
 
           {/* Page content */}
-          <div style={{ padding: '24px 28px' }}>
+          <div style={{ width: '100%', maxWidth: 1320, margin: '0 auto', padding: '24px 28px', boxSizing: 'border-box' }}>
             {children}
           </div>
         </main>

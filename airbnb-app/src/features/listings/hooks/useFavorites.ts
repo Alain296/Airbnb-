@@ -10,7 +10,7 @@ interface UseFavoritesReturn {
 }
 
 export function useFavorites(): UseFavoritesReturn {
-  const { state, dispatch } = useStore();
+  const { dispatch } = useStore();
   const { data: savedIds = [] } = useSaved();
   const toggleSaved = useToggleSaved();
 
@@ -20,8 +20,6 @@ export function useFavorites(): UseFavoritesReturn {
     const saving = !isSaved(id);
     if (saving && listing) rememberSavedListing(listing);
     toggleSaved.mutate(id);
-
-    // keep existing dashboard/store behavior in sync during migration
     dispatch({ type: 'TOGGLE_FAVORITE', payload: id });
 
     if (saving) {
@@ -31,5 +29,5 @@ export function useFavorites(): UseFavoritesReturn {
     }
   };
 
-  return { toggle, isSaved, count: savedIds.length || state.saved.length };
+  return { toggle, isSaved, count: savedIds.length };
 }

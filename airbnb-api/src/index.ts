@@ -37,6 +37,7 @@ app.use(cors({
 // Performance middleware (order matters!)
 app.use(compression()); // Enable gzip compression
 app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
+app.use(express.urlencoded({ extended: true })); // Parse OAuth form_post callbacks
 
 // Apply rate limiting to all routes
 app.use(generalLimiter);

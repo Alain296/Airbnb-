@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHeart, FiMapPin, FiStar } from 'react-icons/fi';
 import { GuestLayout } from '../components/GuestLayout';
-import { useSaved } from '../../listings/hooks/useToggleSaved';
+import { readSavedListingSnapshots, useSaved } from '../../listings/hooks/useToggleSaved';
 import { useFavorites } from '../../listings/hooks/useFavorites';
 import { useListings } from '../../listings/hooks/useListings';
 
@@ -11,8 +12,17 @@ export default function GuestWishlistPage() {
   const { toggle } = useFavorites();
   const { data: allListings = [], isLoading } = useListings(50);
 
-  // Match saved IDs against real API listings
-  const wishlist = allListings.filter((l) => savedIds.includes(l.id));
+  const wishlist = useMemo(() => {
+    const apiMatches = allListings.filter((listing) => savedIds.includes(listing.id));
+    const apiIds = new Set(apiMatches.map((listing) => listing.id));
+    const snapshots = readSavedListingSnapshots().filter(
+      (listing) => savedIds.includes(listing.id) && !apiIds.has(listing.id),
+    );
+
+    return [...apiMatches, ...snapshots].sort(
+      (a, b) => savedIds.indexOf(a.id) - savedIds.indexOf(b.id),
+    );
+  }, [allListings, savedIds]);
 
   return (
     <GuestLayout title="Wishlist" subtitle="Listings you have saved">
@@ -77,7 +87,7 @@ export default function GuestWishlistPage() {
                       ${l.price}<span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 12 }}>/night</span>
                     </span>
                     <span style={{ fontSize: 12, color: '#374151', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <FiStar size={12} fill="#f59e0b" color="#f59e0b" /> {l.rating}
+                      <FiStar size={12} fill="#f59e0b" color="#f59e0b" /> {l.rating || 'New'}
                     </span>
                   </div>
                 </div>

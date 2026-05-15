@@ -181,6 +181,11 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    if (!listing.isPublished) {
+      res.status(404).json({ message: "Listing is not available for booking yet" });
+      return;
+    }
+
     // Check if guest capacity is sufficient
     if (guests > listing.guests) {
       res.status(400).json({ 
@@ -345,6 +350,18 @@ export const getUserBookings = async (req: Request, res: Response): Promise<void
                   name: true,
                   avatar: true
                 }
+              },
+              reviews: {
+                where: { userId },
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  createdAt: true,
+                  hostResponse: true,
+                  hostRespondedAt: true
+                },
+                take: 1
               }
             }
           }

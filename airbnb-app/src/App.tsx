@@ -21,6 +21,7 @@ import GuestStubPage from './features/bookings/pages/GuestStubPage';
 import HostDashboard from './features/host/pages/HostDashboard';
 import HostBookingsPage from './features/host/pages/HostBookingsPage';
 import HostReviewsPage from './features/host/pages/HostReviewsPage';
+import HostPersonalInfoPage from './features/host/pages/HostPersonalInfoPage';
 import CreateListingPage from './features/host/pages/CreateListingPage';
 import EditListingPage from './features/host/pages/EditListingPage';
 import AdminDashboard from './features/admin/pages/AdminDashboard';
@@ -157,6 +158,7 @@ export default function App() {
         <Route path="/host/dashboard" element={<RoleRoute allow={['HOST']}><HostDashboard /></RoleRoute>} />
         <Route path="/host/bookings"  element={<RoleRoute allow={['HOST']}><HostBookingsPage /></RoleRoute>} />
         <Route path="/host/reviews"   element={<RoleRoute allow={['HOST']}><HostReviewsPage /></RoleRoute>} />
+        <Route path="/host/personal-info" element={<RoleRoute allow={['HOST']}><HostPersonalInfoPage /></RoleRoute>} />
         <Route path="/host/listings/new" element={<RoleRoute allow={['HOST']}><CreateListingPage /></RoleRoute>} />
         <Route path="/host/listings/:id/edit" element={<RoleRoute allow={['HOST']}><EditListingPage /></RoleRoute>} />
 

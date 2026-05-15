@@ -29,6 +29,10 @@ export default function OAuthCallbackPage() {
         google_cancelled:    'Google sign-in was cancelled.',
         oauth_not_configured:'Google OAuth is not configured on the server.',
         google_failed:       'Google sign-in failed. Please try again.',
+        apple_cancelled:     'Apple sign-in was cancelled.',
+        apple_not_configured:'Apple sign-in is not configured on the server.',
+        apple_missing_email: 'Apple did not return an email address for this account.',
+        apple_failed:        'Apple sign-in failed. Please try again.',
         account_suspended:   'Your account has been suspended.',
       };
       toast.error(messages[error] ?? 'Sign-in failed.');

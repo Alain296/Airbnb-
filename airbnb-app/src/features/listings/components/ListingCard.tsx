@@ -18,7 +18,7 @@ interface Props {
 }
 
 const fmtCat = (cat: string) =>
-  cat === 'eat-drink' ? 'Eat & Drink' : cat.charAt(0).toUpperCase() + cat.slice(1);
+  cat.replace('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
 export const ListingCard = memo(function ListingCard({
   listing,
@@ -53,7 +53,7 @@ export const ListingCard = memo(function ListingCard({
         <img src={listing.img} alt={listing.title} className={styles.image}
           data-listing-photo
           crossOrigin="anonymous"
-          onError={e => ((e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}/400/260`)} />
+          onError={e => ((e.target as HTMLImageElement).src = '/liston-v2.3/assets/images/header/lg-01.jpg')} />
 
         {listing.superhost && (
           <div className={styles.badgeSuperhost} data-listing-badge>
@@ -110,7 +110,7 @@ export const ListingCard = memo(function ListingCard({
           <img src={listing.profileImg} alt={listing.hostName} className={styles.hostAvatar}
             data-listing-photo
             crossOrigin="anonymous"
-            onError={e => ((e.target as HTMLImageElement).src = `https://i.pravatar.cc/50?u=${listing.id}`)} />
+            onError={e => ((e.target as HTMLImageElement).src = '/liston-v2.3/assets/images/avatar/01.jpg')} />
           <div>
             <div className={styles.hostLabel} style={dark ? { color: '#64748b' } : undefined}>
               Hosted by

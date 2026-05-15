@@ -270,7 +270,7 @@ export const becomeHost = async (req: AuthRequest, res: Response): Promise<void>
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { password } = req.body as { password?: string };
+    const { token, password } = req.body as { token?: string; password?: string };
 
     if (!token || !password || password.length < 8) {
       res.status(400).json({ message: "Password must be at least 8 characters" });

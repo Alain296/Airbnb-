@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../lib/api';
 import type { Listing } from '../types';
 
 const SAVED_KEY = 'airbnb-saved';
@@ -7,7 +6,7 @@ const SAVED_LISTINGS_KEY = 'airbnb-saved-listings';
 
 export type SavedListingSnapshot = Pick<
   Listing,
-  'id' | 'title' | 'location' | 'price' | 'img'
+  'id' | 'title' | 'location' | 'price' | 'img' | 'rating'
 >;
 
 function readSavedLocal(): string[] {
@@ -22,7 +21,7 @@ function readSavedLocal(): string[] {
 }
 
 function writeSavedLocal(ids: string[]) {
-  localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
+  localStorage.setItem(SAVED_KEY, JSON.stringify([...new Set(ids)]));
 }
 
 export function readSavedListingSnapshots(): SavedListingSnapshot[] {
@@ -42,6 +41,7 @@ export function readSavedListingSnapshots(): SavedListingSnapshot[] {
         location: String(item.location),
         price: Number(item.price) || 0,
         img: String(item.img),
+        rating: Number(item.rating) || 0,
       }));
   } catch {
     return [];
@@ -60,6 +60,7 @@ export function rememberSavedListing(listing: Listing) {
     location: listing.location,
     price: listing.price,
     img: listing.img,
+    rating: listing.rating,
   };
 
   writeSavedListingSnapshots([
@@ -70,6 +71,17 @@ export function rememberSavedListing(listing: Listing) {
 
 function forgetSavedListing(id: string) {
   writeSavedListingSnapshots(readSavedListingSnapshots().filter((item) => item.id !== id));
+}
+
+function syncSavedLocal(id: string, previous = readSavedLocal()) {
+  const next = previous.includes(id)
+    ? previous.filter((savedId) => savedId !== id)
+    : [...previous, id];
+
+  writeSavedLocal(next);
+  if (!next.includes(id)) forgetSavedListing(id);
+
+  return { previous, next };
 }
 
 export function useSaved() {
@@ -86,24 +98,14 @@ export function useToggleSaved() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      try {
-        await api.post(`/saved/${id}`, {});
-      } catch (e) {
-        // Backend currently may not expose /saved yet; keep local optimistic state.
-        const msg = (e as Error).message || '';
-        if (!msg.includes('404')) throw e;
-      }
       return { id };
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['saved'] });
       const previous = queryClient.getQueryData<string[]>(['saved']) ?? readSavedLocal();
-      const next = previous.includes(id)
-        ? previous.filter((x) => x !== id)
-        : [...previous, id];
+      const { next } = syncSavedLocal(id, previous);
+
       queryClient.setQueryData(['saved'], next);
-      writeSavedLocal(next);
-      if (!next.includes(id)) forgetSavedListing(id);
       return { previous };
     },
     onError: (_error, _id, context) => {

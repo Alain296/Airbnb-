@@ -9,7 +9,7 @@ const tomorrow = () => {
 export const datesSchema = z.object({
   checkIn:  z.string().min(1, 'Check-in date is required'),
   checkOut: z.string().min(1, 'Check-out date is required'),
-  guests:   z.number({ invalid_type_error: 'Guests is required' }).min(1).max(16),
+  guests:   z.number().min(1, 'Guests is required').max(16),
 }).refine((d) => d.checkIn >= tomorrow(), {
   message: 'Check-in must be at least tomorrow',
   path: ['checkIn'],

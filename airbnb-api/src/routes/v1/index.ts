@@ -7,6 +7,8 @@ import reviewsRouter from "./reviews.routes";
 import statsRouter from "./stats.routes";
 import uploadRouter from "./upload.routes";
 import aiRouter from "./ai.routes";
+import messagesRouter from "./messages.routes";
+import accountRouter from "./account.routes";
 import { authenticate, requireAdmin } from "../../middlewares/auth.middleware";
 
 const v1Router = Router();
@@ -23,6 +25,10 @@ v1Router.use(statsRouter);
 
 // User routes (admin only)
 v1Router.use("/users", authenticate, requireAdmin, usersRouter);
+
+// Signed-in user's own profile, payment methods, and booking messages
+v1Router.use("/account", accountRouter);
+v1Router.use(messagesRouter);
 
 // Listing routes
 v1Router.use("/listings", listingsRouter);

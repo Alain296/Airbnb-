@@ -6,7 +6,8 @@ import { HostLayout } from '../components/HostLayout';
 import { listingSchema, CANCELLATION_POLICIES, CANCELLATION_POLICY_LABELS } from '../schemas/listing';
 import type { ListingFormData } from '../schemas/listing';
 import { useCreateListing } from '../hooks/useCreateListing';
-import { useUploadListingPhotos } from '../hooks/useUploadListingPhotos';
+import { uploadListingPhotosRequest } from '../hooks/useUploadListingPhotos';
+import { api } from '../../../lib/api';
 
 const AMENITY_OPTIONS = [
   'WiFi', 'Kitchen', 'Free parking', 'Air conditioning', 'Heating',
@@ -23,9 +24,9 @@ export default function CreateListingPage() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState('');
 
-  // We need the listing ID after creation to upload photos
-  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
-  const uploadPhotos = useUploadListingPhotos(createdListingId ?? '');
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [descriptionError, setDescriptionError] = useState('');
 
   const {
     register,
@@ -41,12 +42,47 @@ export default function CreateListingPage() {
       pricePerNight:      100,
       type:               'APARTMENT',
       cancellationPolicy: 'FLEXIBLE',
-      isPublished:        true,
+      isPublished:        false,
     },
   });
 
   const selectedAmenities = watch('amenities') ?? [];
-  const isPublished = watch('isPublished');
+  const title = watch('title') ?? '';
+  const location = watch('location') ?? '';
+  const type = watch('type') ?? 'APARTMENT';
+  const guests = watch('guests') ?? 2;
+  const pricePerNight = watch('pricePerNight') ?? 100;
+
+  const generateListingDescription = async () => {
+    setDescriptionError('');
+
+    if (!title.trim() || !location.trim() || !type || !guests || !pricePerNight) {
+      setDescriptionError('Add the title, location, property type, guests, and price first.');
+      return '';
+    }
+
+    setGeneratingDescription(true);
+    try {
+      const res = await api.post<{ description: string }>('/ai/generate-description', {
+        title,
+        location,
+        type,
+        guests,
+        pricePerNight,
+        amenities: selectedAmenities,
+        tone: 'friendly',
+      });
+
+      setValue('description', res.description, { shouldValidate: true, shouldDirty: true });
+      return res.description;
+    } catch (err) {
+      const message = (err as Error).message || 'Could not generate a description right now.';
+      setDescriptionError(message);
+      return '';
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
 
   const toggleAmenity = (amenity: string) => {
     const current = selectedAmenities;
@@ -94,17 +130,26 @@ export default function CreateListingPage() {
   };
 
   const onSubmit = async (values: ListingFormData) => {
+    let payload = values;
+    if (!String(values.description ?? '').trim()) {
+      const generatedDescription = await generateListingDescription();
+      if (!generatedDescription) return;
+      payload = { ...values, description: generatedDescription };
+    }
+
     // 1. Create the listing
-    const res = await create.mutateAsync(values);
+    const res = await create.mutateAsync(payload);
     const newId: string = (res as any)?.listing?.id ?? '';
 
     // 2. Upload photos if any were selected
     if (newId && pendingPhotos.length > 0) {
-      setCreatedListingId(newId);
+      setUploadingPhotos(true);
       try {
-        await uploadPhotos.mutateAsync(pendingPhotos);
+        await uploadListingPhotosRequest(newId, pendingPhotos);
       } catch {
         // Photos failed but listing was created — navigate anyway
+      } finally {
+        setUploadingPhotos(false);
       }
     }
 
@@ -112,7 +157,7 @@ export default function CreateListingPage() {
   };
 
   return (
-    <HostLayout title="Create Listing" subtitle="Fill in the details to publish your property.">
+    <HostLayout title="Create Listing" subtitle="Submit your property for admin review before guests can see it.">
 
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -123,7 +168,26 @@ export default function CreateListingPage() {
             <Field label="Title" err={errors.title?.message}>
               <input {...register('title')} placeholder="e.g. Cozy beachfront apartment in Cape Town" style={inp} />
             </Field>
-            <Field label="Description" err={errors.description?.message}>
+            <Field label="Description" err={errors.description?.message || descriptionError}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: '#666' }}>
+                  Generate it from the property details, or edit it after generation.
+                </span>
+                <button
+                  type="button"
+                  onClick={generateListingDescription}
+                  disabled={generatingDescription}
+                  style={{
+                    ...btnGhost,
+                    padding: '8px 12px',
+                    fontSize: 12,
+                    opacity: generatingDescription ? 0.65 : 1,
+                    cursor: generatingDescription ? 'wait' : 'pointer',
+                  }}
+                >
+                  {generatingDescription ? 'Generating...' : 'Generate description'}
+                </button>
+              </div>
               <textarea
                 {...register('description')}
                 placeholder="Describe your property — what makes it special, nearby attractions, house rules..."
@@ -355,34 +419,16 @@ export default function CreateListingPage() {
             )}
           </Section>
 
-          {/* ── Section: Publish Settings ────────────────────────── */}
-          <Section title="Publish Settings">
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              padding: '14px 16px',
-              borderRadius: 10,
-              border: `1.5px solid ${isPublished ? '#16a34a' : '#e5e7eb'}`,
-              background: isPublished ? '#f0fdf4' : 'white',
-              cursor: 'pointer',
-            }}>
-              <input
-                type="checkbox"
-                {...register('isPublished')}
-                style={{ width: 18, height: 18, accentColor: '#16a34a', cursor: 'pointer' }}
-              />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: isPublished ? '#16a34a' : '#374151' }}>
-                  {isPublished ? '✓ Publish immediately' : 'Save as draft'}
-                </div>
-                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-                  {isPublished
-                    ? 'Your listing will be visible to guests right away.'
-                    : 'Your listing will be saved but not visible to guests yet.'}
-                </div>
+          {/* ── Section: Approval Status ─────────────────────────── */}
+          <Section title="Approval Status">
+            <div style={{ padding: '14px 16px', borderRadius: 10, border: '1.5px solid #fbbf24', background: '#fffbeb' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e' }}>
+                Pending admin review
               </div>
-            </label>
+              <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                After you submit, an admin must approve and publish this listing before guests can find or book it.
+              </div>
+            </div>
           </Section>
 
           {/* ── Submit ──────────────────────────────────────────── */}
@@ -397,18 +443,18 @@ export default function CreateListingPage() {
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="submit"
-              disabled={create.isPending || uploadPhotos.isPending}
+              disabled={create.isPending || uploadingPhotos}
               style={{
                 ...btnPrimary,
-                opacity: create.isPending || uploadPhotos.isPending ? 0.6 : 1,
-                cursor: create.isPending || uploadPhotos.isPending ? 'not-allowed' : 'pointer',
+                opacity: create.isPending || uploadingPhotos ? 0.6 : 1,
+                cursor: create.isPending || uploadingPhotos ? 'not-allowed' : 'pointer',
               }}
             >
               {create.isPending
                 ? 'Creating listing...'
-                : uploadPhotos.isPending
+                : uploadingPhotos
                   ? 'Uploading photos...'
-                  : isPublished ? 'Publish Listing' : 'Save as Draft'}
+                  : 'Submit for Review'}
             </button>
             <button
               type="button"

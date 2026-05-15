@@ -40,7 +40,7 @@ export const setupMfa = async (req: AuthRequest, res: Response): Promise<void> =
       algorithm: "SHA1",
       digits:    6,
       period:    30,
-      secret:    OTPAuth.Secret.fromRandom(20),
+      secret:    new OTPAuth.Secret({ size: 20 }),
     });
 
     const secret    = totp.secret.base32;

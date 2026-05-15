@@ -7,6 +7,7 @@ import {
   FiMoon, FiFileText, FiUser, FiMessageSquare, FiStar, FiAlertCircle,
 } from 'react-icons/fi';
 import { useListing } from '../hooks/useListing';
+import { useListings } from '../hooks/useListings';
 import { useListingReviews } from '../hooks/useListingReviews';
 import { useFavorites } from '../hooks/useFavorites';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -14,6 +15,7 @@ import { Navbar } from '../../../shared/components/Navbar';
 import { Footer } from '../../../shared/components/Footer';
 import { Spinner } from '../../../shared/components/Spinner';
 import { api } from '../../../lib/api';
+import { ListingCard } from '../components/ListingCard';
 
 const CANCELLATION_RULES: Record<string, string> = {
   FLEXIBLE:       'Full refund if cancelled 1 day before check-in.',
@@ -106,12 +108,13 @@ export default function ListingDetail() {
   const { isAuthenticated, role } = useAuth();
 
   const { data: listing, isLoading, isError, error, refetch } = useListing(id ?? '');
+  const { data: allListings = [] } = useListings(50);
   const { data: reviews = [], refetch: refetchReviews, isError: reviewsError } = useListingReviews(id);
 
   const [activeImg, setActiveImg] = useState(0);
-  const [checkIn,   setCheckIn]   = useState(dayjs().add(3, 'day').format('YYYY-MM-DD'));
-  const [checkOut,  setCheckOut]  = useState(dayjs().add(6, 'day').format('YYYY-MM-DD'));
-  const [guests,    setGuests]    = useState(1);
+  const [checkIn]   = useState(dayjs().add(3, 'day').format('YYYY-MM-DD'));
+  const [checkOut]  = useState(dayjs().add(6, 'day').format('YYYY-MM-DD'));
+  const [guests]    = useState(1);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   
   // Review submission state
@@ -210,15 +213,10 @@ export default function ListingDetail() {
     </div>
   );
 
-  const gallery = (listing.images && listing.images.length >= 4)
-    ? listing.images
-    : [
-        listing.img,
-        `https://picsum.photos/seed/${listing.id}-a/1200/800`,
-        `https://picsum.photos/seed/${listing.id}-b/1200/800`,
-        `https://picsum.photos/seed/${listing.id}-c/1200/800`,
-        `https://picsum.photos/seed/${listing.id}-d/1200/800`,
-      ];
+  const gallery = listing.images && listing.images.length > 0 ? listing.images : [listing.img];
+  const similarListings = allListings
+    .filter((item) => item.id !== listing.id && (item.type === listing.type || item.location.split(',')[0] === listing.location.split(',')[0]))
+    .slice(0, 3);
 
   const amenities = listing.amenities ?? [];
   const visibleAmenities = showAllAmenities ? amenities : amenities.slice(0, 8);
@@ -253,10 +251,10 @@ export default function ListingDetail() {
               src={gallery[activeImg] ?? gallery[0]}
               alt={listing.title}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              onError={(e) => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}/900/600`; }}
+              onError={(e) => { (e.currentTarget.src = '/liston-v2.3/assets/images/header/lg-01.jpg'); }}
             />
             <button
-              onClick={() => toggle(listing.id, listing.title)}
+              onClick={() => toggle(listing.id, listing.title, listing)}
               style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
             >
               <FiHeart size={20} fill={saved ? '#ff5722' : 'none'} color={saved ? '#ff5722' : '#374151'} />
@@ -266,10 +264,10 @@ export default function ListingDetail() {
             {[1, 2, 3, 4].map((i) => (
               <div key={i} style={{ cursor: 'pointer', overflow: 'hidden' }} onClick={() => setActiveImg(i)}>
                 <img
-                  src={gallery[i] ?? `https://picsum.photos/seed/${listing.id}-${i}/600/400`}
+                  src={gallery[i] ?? gallery[0]}
                   alt={`Photo ${i + 1}`}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', outline: activeImg === i ? '3px solid #ff5722' : 'none', outlineOffset: -3 }}
-                  onError={(e) => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}-${i}/600/400`; }}
+                  onError={(e) => { (e.currentTarget.style.display = 'none'); }}
                 />
               </div>
             ))}
@@ -282,7 +280,7 @@ export default function ListingDetail() {
             <button key={i} onClick={() => setActiveImg(i)}
               style={{ flexShrink: 0, width: 80, height: 56, borderRadius: 8, overflow: 'hidden', border: activeImg === i ? '2.5px solid #ff5722' : '2px solid #e5e7eb', padding: 0, cursor: 'pointer', background: 'none' }}>
               <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${listing.id}-t${i}/160/112`; }} />
+                onError={(e) => { (e.currentTarget.style.display = 'none'); }} />
             </button>
           ))}
         </div>
@@ -304,7 +302,7 @@ export default function ListingDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 0', borderBottom: '1px solid #e5e7eb', marginBottom: 24 }}>
               <img src={listing.profileImg} alt={listing.hostName}
                 style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f0f0f0' }}
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://i.pravatar.cc/56?u=${listing.hostId}`; }} />
+                onError={(e) => { (e.currentTarget.src = '/liston-v2.3/assets/images/avatar/01.jpg'); }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16 }}>Hosted by {listing.hostName}</div>
                 {listing.superhost && (
@@ -691,7 +689,7 @@ export default function ListingDetail() {
                 </div>
               </div>
 
-              <button onClick={() => toggle(listing.id, listing.title)}
+              <button onClick={() => toggle(listing.id, listing.title, listing)}
                 style={{ ...btnGhost, width: '100%', marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {saved ? 'Saved to Wishlist' : 'Save to Wishlist'}
               </button>
@@ -701,7 +699,7 @@ export default function ListingDetail() {
             <div style={{ background: '#f8f9fa', borderRadius: 12, padding: '16px 18px', marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
               <img src={listing.profileImg} alt={listing.hostName}
                 style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }}
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://i.pravatar.cc/48?u=${listing.hostId}`; }} />
+                onError={(e) => { (e.currentTarget.src = '/liston-v2.3/assets/images/avatar/01.jpg'); }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{listing.hostName}</div>
                 <div style={{ fontSize: 12, color: '#9ca3af' }}>Host</div>
@@ -713,6 +711,17 @@ export default function ListingDetail() {
             </div>
           </div>
         </div>
+
+        {similarListings.length > 0 && (
+          <section style={{ marginTop: 36 }}>
+            <h2 style={sectionTitle}>Similar stays you may like</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 18 }}>
+              {similarListings.map((item) => (
+                <ListingCard key={item.id} listing={item} viewMode="grid" dark={false} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
       <Footer />
     </div>

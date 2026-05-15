@@ -358,7 +358,7 @@ import {
   resetPassword,
   becomeHost,
 } from "../../controllers/auth.controller";
-import { googleAuth, googleCallback } from "../../controllers/oauth.controller";
+import { appleAuth, appleCallback, googleAuth, googleCallback } from "../../controllers/oauth.controller";
 import { authenticate } from "../../middlewares/auth.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import {
@@ -579,6 +579,8 @@ authRouter.post("/reset-password/:token", validate(resetPasswordSchema), resetPa
 // ── Google OAuth ──────────────────────────────────────────────────────
 authRouter.get("/google",          googleAuth);
 authRouter.get("/google/callback", googleCallback);
+authRouter.get("/apple",           appleAuth);
+authRouter.post("/apple/callback", appleCallback);
 
 // ── Become a Host ─────────────────────────────────────────────────────
 authRouter.post("/become-host", authenticate, becomeHost);

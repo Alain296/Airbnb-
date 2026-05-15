@@ -23,7 +23,7 @@ export function Chatbox({ listingId }: ChatboxProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Hi! I\'m your AI assistant. How can I help you with your booking, account, or any questions about the platform?',
+      text: 'Hi! I can help with bookings, payments, cancellations, reviews, or questions about your stay.',
       sender: 'bot',
       timestamp: new Date(),
     },
@@ -91,7 +91,7 @@ export function Chatbox({ listingId }: ChatboxProps) {
     } catch (error: any) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'Sorry, I encountered an error. Please try again or contact support.',
+        text: 'Sorry, I could not answer that just now. Please try again.',
         sender: 'bot',
         timestamp: new Date(),
       };

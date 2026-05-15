@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { model, deterministicModel } from "../config/ai";
 import prisma from "../config/prisma";
 import { handleControllerError } from "../utils/error-handler";
@@ -13,6 +14,262 @@ interface SearchFilters {
   maxPrice?: number | null;
   guests?: number | null;
 }
+
+const LISTING_TYPES = ["APARTMENT", "HOUSE", "VILLA", "CABIN", "CONDO", "STUDIO"];
+
+const PLATFORM_TOPIC_PATTERN =
+  /\b(listings?|stays?|properties|apartments?|houses?|villas?|cabins?|condos?|studios?|book|booking|reserve|reservation|pay|payment|card|refund|cancel|cancellation|check[-\s]?in|check[-\s]?out|host|guest|message|review|rating|saved|wishlist|account|profile|photo|amenit(?:y|ies)|price|fees?|support|dashboard|availability|dates?|location|search|filter|approve|approval|publish|published|pending)\b/i;
+
+const GREETING_PATTERN = /\b(hi|hello|hey|good morning|good afternoon|good evening|how are you|how are things|are you okay)\b/i;
+
+const isSmallTalkGreeting = (message: string) =>
+  /\b(hi|hello|hey|good morning|good afternoon|good evening|how are you|how are things|are you okay)\b/i.test(message) &&
+  !PLATFORM_TOPIC_PATTERN.test(message);
+
+const isPlatformRelatedQuestion = (message: string) =>
+  PLATFORM_TOPIC_PATTERN.test(message) || GREETING_PATTERN.test(message);
+
+const createConversationId = () =>
+  `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+const extractFiltersFromQuery = (query: string): SearchFilters => {
+  const q = query.toLowerCase();
+  const filters: SearchFilters = {
+    location: null,
+    type: null,
+    minPrice: null,
+    maxPrice: null,
+    guests: null,
+  };
+
+  const type = LISTING_TYPES.find((value) => q.includes(value.toLowerCase()));
+  if (type) filters.type = type;
+
+  const under = q.match(/(?:under|below|less than|max(?:imum)?|up to)\s*\$?\s*(\d+)/);
+  if (under) filters.maxPrice = Number(under[1]);
+  const over = q.match(/(?:over|above|more than|min(?:imum)?|from)\s*\$?\s*(\d+)/);
+  if (over) filters.minPrice = Number(over[1]);
+  const guests = q.match(/(\d+)\s*(?:guests?|people|persons?)/);
+  if (guests) filters.guests = Number(guests[1]);
+
+  const locationPatterns = [
+    /\b(?:in|at|near|around)\s+([a-z][a-z\s,.-]{1,60}?)(?=\s+(?:under|below|over|above|for|with|that|which|and)\b|$)/i,
+    /\blocated\s+in\s+([a-z][a-z\s,.-]{1,60})/i,
+    /\b([a-z][a-z\s,.-]{1,60})\s+location\b/i,
+  ];
+  for (const pattern of locationPatterns) {
+    const match = query.match(pattern);
+    if (match?.[1]) {
+      filters.location = match[1]
+        .replace(/\b(?:apartments?|houses?|villas?|cabins?|condos?|studios?|listings?|located|that|are|is|the)\b/gi, "")
+        .trim()
+        .replace(/[,.]$/, "");
+      break;
+    }
+  }
+
+  return filters;
+};
+
+const hasAnyFilter = (filters: SearchFilters) =>
+  Object.values(filters).some(value => value !== null && value !== undefined && value !== "");
+
+const STOP_WORDS = new Set([
+  "what", "which", "where", "when", "how", "does", "do", "did", "give", "gives",
+  "have", "has", "with", "from", "for", "the", "and", "are", "you", "can",
+  "service", "services", "amenity", "amenities", "hotel", "listing", "property",
+  "book", "booking", "about", "tell", "me", "please", "is", "it", "its", "type",
+]);
+
+const getListingKeywords = (message: string) =>
+  message
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
+    .slice(0, 8);
+
+const buildListingContext = (listings: any[]) => listings.map((listing, index) => {
+  const photos = listing.photos?.map((photo: { url: string }) => photo.url).filter(Boolean).slice(0, 3) ?? [];
+  const reviewCount = listing._count?.reviews ?? listing.reviews?.length ?? 0;
+  return `
+Listing ${index + 1}:
+- ID: ${listing.id}
+- Name: ${listing.title}
+- Location: ${listing.location}
+- Type: ${listing.type}
+- Description: ${listing.description}
+- Price: $${listing.pricePerNight}/night
+- Guest capacity: ${listing.guests}
+- Amenities/services shown for guests: ${listing.amenities?.length ? listing.amenities.join(", ") : "No amenities listed yet"}
+- Cancellation policy: ${listing.cancellationPolicy}
+- Minimum nights: ${listing.minNights}
+- Host: ${listing.host?.name ?? "Host"}
+- Rating: ${listing.rating ?? "No rating yet"} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}
+- Photos: ${photos.length ? photos.join(", ") : "No photos listed yet"}`;
+}).join("\n");
+
+const findListingsMentionedInMessage = async (message: string, listingId?: string | null) => {
+  if (listingId) {
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      include: {
+        host: { select: { name: true, email: true, avatar: true } },
+        photos: { select: { url: true }, take: 3 },
+        _count: { select: { reviews: true, bookings: true } },
+      },
+    });
+    return listing?.isPublished ? [listing] : [];
+  }
+
+  const keywords = getListingKeywords(message);
+  if (!keywords.length) return [];
+
+  return prisma.listing.findMany({
+    where: {
+      isPublished: true,
+      OR: keywords.flatMap((keyword) => [
+        { title: { contains: keyword, mode: "insensitive" } },
+        { location: { contains: keyword, mode: "insensitive" } },
+        { description: { contains: keyword, mode: "insensitive" } },
+        { amenities: { has: keyword } },
+      ]),
+    },
+    include: {
+      host: { select: { name: true, email: true, avatar: true } },
+      photos: { select: { url: true }, take: 3 },
+      _count: { select: { reviews: true, bookings: true } },
+    },
+    orderBy: [{ rating: "desc" }, { createdAt: "desc" }],
+    take: 5,
+  });
+};
+
+const isServiceQuestion = (message: string) =>
+  /\b(services?|amenities|facilities|provide|offers?|include|available|features?)\b/i.test(message);
+
+const isBookingQuestion = (message: string) =>
+  /\b(book|booking|reserve|reservation|how to pay|payment|check[-\s]?in|check[-\s]?out)\b/i.test(message);
+
+const isBookingHowToQuestion = (message: string) =>
+  /\b(how|steps?|process|someone|guest)\b/i.test(message) &&
+  /\b(book|booking|reserve|reservation)\b/i.test(message) &&
+  !/\b(cancel|cancellation|refund)\b/i.test(message);
+
+const isCancellationHowToQuestion = (message: string) =>
+  /\b(how|steps?|process|someone|guest)\b/i.test(message) &&
+  /\b(cancel|cancellation|refund)\b/i.test(message);
+
+const isPlaceDiscoveryQuestion = (message: string) =>
+  /\b(which|what|where|show|find|available|places?|stays?|listings?|properties|accommodation)\b/i.test(message) &&
+  /\b(stay|sleep|book|available|find|place|listing|property|apartment|house|villa|cabin|condo|studio)\b/i.test(message);
+
+const extractLocationFilters = (message: string) => {
+  const normalized = message.replace(/[?!.]/g, " ");
+  const match = normalized.match(/\b(?:in|at|near|around)\s+([a-z][a-z\s,.-]*?)(?=\s+(?:under|below|over|above|for|with|that|which|and has|where|available|to stay)\b|$)/i);
+  if (!match?.[1]) return [];
+
+  return match[1]
+    .split(/\s+(?:or|and)\s+|[,/]/i)
+    .map((part) =>
+      part
+        .replace(/\b(?:apartments?|houses?|villas?|cabins?|condos?|studios?|listings?|places?|stays?|properties|are|is|the|there|available)\b/gi, "")
+        .trim(),
+    )
+    .filter(Boolean)
+    .slice(0, 4);
+};
+
+const getListingTypeFromMessage = (message: string) => {
+  const q = message.toLowerCase();
+  return LISTING_TYPES.find((value) => q.includes(value.toLowerCase())) ?? null;
+};
+
+const formatListingSummary = (listing: any) =>
+  `${listing.title} in ${listing.location}: $${listing.pricePerNight}/night, ${listing.guests} guest${listing.guests === 1 ? "" : "s"}, ${String(listing.type).toLowerCase()}`;
+
+const answerListingDiscoveryQuestion = async (message: string) => {
+  const type = getListingTypeFromMessage(message);
+  const locations = extractLocationFilters(message);
+  const countQuestion = /\b(how many|count|number of)\b/i.test(message);
+
+  const where: Prisma.ListingWhereInput = { isPublished: true };
+  if (type) where.type = type as any;
+  if (locations.length === 1) {
+    where.location = { contains: locations[0], mode: "insensitive" };
+  } else if (locations.length > 1) {
+    where.OR = locations.map((location) => ({ location: { contains: location, mode: "insensitive" } }));
+  }
+
+  const [listings, totalCount] = await Promise.all([
+    prisma.listing.findMany({
+      where,
+      orderBy: [{ rating: "desc" }, { createdAt: "desc" }],
+      include: {
+        host: { select: { id: true, name: true, email: true, avatar: true } },
+        photos: { select: { url: true }, take: 3 },
+        _count: { select: { reviews: true } },
+      },
+      take: 5,
+    }),
+    prisma.listing.count({ where }),
+  ]);
+
+  const placeText = locations.length ? ` in ${locations.join(" or ")}` : "";
+  const typeText = type ? String(type).toLowerCase() : "stay";
+  const details = listings.length
+    ? listings.map(formatListingSummary).join("\n")
+    : "I could not find any approved stays matching that search right now.";
+
+  return {
+    response: countQuestion
+      ? `I found ${totalCount} approved ${typeText}${totalCount === 1 ? "" : "s"}${placeText}.\n\n${details}`
+      : `Here are approved places guests can stay${placeText}:\n\n${details}`,
+    results: listings,
+    filters: { type, locations },
+  };
+};
+
+const queryListingsFromFilters = async (filters: SearchFilters, page: number, limit: number) => {
+  const whereClause: any = { isPublished: true };
+
+  if (filters.location) {
+    whereClause.location = { contains: filters.location, mode: "insensitive" };
+  }
+  if (filters.type && LISTING_TYPES.includes(filters.type)) {
+    whereClause.type = filters.type;
+  }
+  if (filters.minPrice || filters.maxPrice) {
+    whereClause.pricePerNight = {};
+    if (filters.minPrice) whereClause.pricePerNight.gte = filters.minPrice;
+    if (filters.maxPrice) whereClause.pricePerNight.lte = filters.maxPrice;
+  }
+  if (filters.guests) {
+    whereClause.guests = { gte: filters.guests };
+  }
+
+  const [listings, totalCount] = await Promise.all([
+    prisma.listing.findMany({
+      where: whereClause,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: [{ rating: "desc" }, { createdAt: "desc" }],
+      include: {
+        host: { select: { id: true, name: true, email: true, avatar: true } },
+        photos: { select: { url: true }, take: 3 },
+        _count: { select: { reviews: true } },
+      },
+    }),
+    prisma.listing.count({ where: whereClause }),
+  ]);
+
+  return {
+    listings,
+    totalCount,
+    totalPages: Math.ceil(totalCount / limit),
+  };
+};
 
 /**
  * Smart Listing Search with AI-powered filter extraction
@@ -38,7 +295,25 @@ export const smartSearch = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Create prompt for AI to extract search filters
+    const parsedFilters = extractFiltersFromQuery(query);
+    if (hasAnyFilter(parsedFilters)) {
+      const { listings, totalCount, totalPages } = await queryListingsFromFilters(parsedFilters, page, limit);
+      res.status(200).json({
+        filters: parsedFilters,
+        data: listings,
+        meta: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
+      return;
+    }
+
+    // Create prompt for AI to extract search filters when the deterministic parser cannot.
     const extractionPrompt = `
 Extract search filters from this user query for an Airbnb-like platform. Return ONLY valid JSON with these exact fields:
 
@@ -75,7 +350,7 @@ User query: "${query}"`;
       }
 
       // Check if AI extracted any filters at all
-      const hasFilters = Object.values(filters).some(value => value !== null && value !== undefined);
+      const hasFilters = hasAnyFilter(filters);
       
       if (!hasFilters) {
         res.status(400).json({ 
@@ -84,63 +359,7 @@ User query: "${query}"`;
         return;
       }
 
-      // Build Prisma where clause from extracted filters
-      const whereClause: any = {};
-      
-      if (filters.location) {
-        whereClause.location = {
-          contains: filters.location,
-          mode: 'insensitive'
-        };
-      }
-      
-      if (filters.type) {
-        whereClause.type = filters.type;
-      }
-      
-      if (filters.minPrice || filters.maxPrice) {
-        whereClause.pricePerNight = {};
-        if (filters.minPrice) whereClause.pricePerNight.gte = filters.minPrice;
-        if (filters.maxPrice) whereClause.pricePerNight.lte = filters.maxPrice;
-      }
-      
-      if (filters.guests) {
-        whereClause.guests = {
-          gte: filters.guests
-        };
-      }
-
-      // Execute parallel queries for listings and count
-      const [listings, totalCount] = await Promise.all([
-        prisma.listing.findMany({
-          where: whereClause,
-          skip: (page - 1) * limit,
-          take: limit,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            host: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true
-              }
-            },
-            photos: {
-              select: { url: true },
-              take: 1
-            },
-            _count: {
-              select: { reviews: true }
-            }
-          }
-        }),
-        prisma.listing.count({
-          where: whereClause
-        })
-      ]);
-
-      const totalPages = Math.ceil(totalCount / limit);
+      const { listings, totalCount, totalPages } = await queryListingsFromFilters(filters, page, limit);
 
       res.status(200).json({
         filters,
@@ -263,36 +482,136 @@ Return only the description text, no additional formatting or labels.`;
 export const guestSupport = async (req: Request, res: Response): Promise<void> => {
   try {
     const { message, listingId, conversationId } = req.body;
+    const userMessage = String(message ?? "").trim();
 
-    // Get listing context if provided
-    let listingContext = "";
-    if (listingId) {
-      try {
-        const listing = await prisma.listing.findUnique({
-          where: { id: listingId },
-          include: {
-            host: {
-              select: { name: true, email: true }
-            }
-          }
+    if (!userMessage) {
+      res.status(400).json({ message: "Message is required" });
+      return;
+    }
+
+    const lowerMessage = userMessage.toLowerCase();
+
+    if (isSmallTalkGreeting(userMessage)) {
+      res.status(200).json({
+        response: "I am doing well, thank you for asking. I am here to help you with this booking platform, like finding a place to stay, booking a listing, cancelling a booking, payments, reviews, or messaging a host.",
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: false,
+      });
+      return;
+    }
+
+    if (!isPlatformRelatedQuestion(userMessage)) {
+      res.status(200).json({
+        response: "I can help with this booking platform: finding stays, booking steps, payments, cancellations, host messages, reviews, saved listings, and account questions. Please ask me about one of those areas and I will guide you clearly.",
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: false,
+      });
+      return;
+    }
+
+    const searchLike =
+      lowerMessage.includes("listing") ||
+      lowerMessage.includes("apartment") ||
+      lowerMessage.includes("house") ||
+      lowerMessage.includes("villa") ||
+      lowerMessage.includes("cabin") ||
+      lowerMessage.includes("condo") ||
+      lowerMessage.includes("studio") ||
+      /\b(in|near|around)\b/.test(lowerMessage);
+
+    if (isCancellationHowToQuestion(userMessage)) {
+      res.status(200).json({
+        response: "To cancel a booking, go to My Bookings or My Trips, open the booking you want to cancel, then choose Cancel Booking and confirm. The app will mark the booking as cancelled. If the stay is less than 24 hours away, cancellation may be blocked, so the guest should cancel as early as possible.",
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: false,
+      });
+      return;
+    }
+
+    if (isBookingHowToQuestion(userMessage)) {
+      res.status(200).json({
+        response: "To book a stay, first open an approved listing from the listings page. Choose your check-in and check-out dates, enter the number of guests, then review the total price. After that, click the booking button to confirm. The app will create your booking and show it under My Trips or My Bookings.",
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: false,
+      });
+      return;
+    }
+
+    if (isPlaceDiscoveryQuestion(userMessage)) {
+      const { response, results, filters } = await answerListingDiscoveryQuestion(userMessage);
+      res.status(200).json({
+        response,
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: false,
+        results,
+        filters,
+      });
+      return;
+    }
+
+    if (searchLike) {
+      const filters = extractFiltersFromQuery(userMessage);
+      if (hasAnyFilter(filters)) {
+        const { listings, totalCount } = await queryListingsFromFilters(filters, 1, 5);
+        const countQuestion = /\b(how many|count|number of)\b/i.test(userMessage);
+        const details = listings.length
+          ? listings.map((listing) => `${listing.title} in ${listing.location}: $${listing.pricePerNight}/night, ${listing.guests} guest${listing.guests === 1 ? "" : "s"}, ${listing.type}`).join("\n")
+          : "I could not find any matching stays right now.";
+
+        res.status(200).json({
+          response: countQuestion
+            ? `I found ${totalCount} matching ${filters.type ? filters.type.toLowerCase() : "stay"}${totalCount === 1 ? "" : "s"}${filters.location ? ` in ${filters.location}` : ""}.\n\n${details}`
+            : `I found ${totalCount} matching stay${totalCount === 1 ? "" : "s"}.\n\n${details}`,
+          conversationId: conversationId || createConversationId(),
+          timestamp: new Date().toISOString(),
+          hasListingContext: false,
+          results: listings,
+          filters,
         });
-
-        if (listing) {
-          listingContext = `
-Listing Context:
-- Property: ${listing.title}
-- Location: ${listing.location}
-- Type: ${listing.type}
-- Guests: ${listing.guests}
-- Price: $${listing.pricePerNight}/night
-- Host: ${listing.host.name}
-- Check-in: 3:00 PM
-- Check-out: 11:00 AM`;
-        }
-      } catch (dbError) {
-        console.error("Error fetching listing context:", dbError);
-        // Continue without context
+        return;
       }
+    }
+
+    let matchedListings: any[] = [];
+    try {
+      matchedListings = await findListingsMentionedInMessage(userMessage, listingId);
+    } catch (dbError) {
+      console.error("Error fetching listing context:", dbError);
+    }
+
+    const [publishedListingCount, savedPaymentMethodCount] = await Promise.all([
+      prisma.listing.count({ where: { isPublished: true } }),
+      prisma.paymentMethod.count().catch(() => 0),
+    ]);
+
+    const platformContext = `
+LIVE PLATFORM DETAILS:
+- Guests can currently browse ${publishedListingCount} admin-approved published listing${publishedListingCount === 1 ? "" : "s"}.
+- New host listings are held for admin review first. Guests only see them after an admin approves and publishes them.
+- Payment methods are saved in the account area; ${savedPaymentMethodCount} saved payment method${savedPaymentMethodCount === 1 ? "" : "s"} exist in the system right now.
+- Bookings use listing price, selected dates, guest count, availability, and booking status.
+`;
+
+    const listingContext = matchedListings.length
+      ? `LISTING DETAILS - use only these details when answering property questions:\n${buildListingContext(matchedListings)}`
+      : "";
+
+    if (matchedListings.length && isServiceQuestion(userMessage)) {
+      const primary = matchedListings[0];
+      const amenities = primary.amenities?.length ? primary.amenities.join(", ") : "No amenities are listed for this stay yet";
+      res.status(200).json({
+        response: `${primary.title} in ${primary.location} offers these services and amenities: ${amenities}. It is a ${String(primary.type).toLowerCase()} for up to ${primary.guests} guest${primary.guests === 1 ? "" : "s"} at $${primary.pricePerNight}/night. To book it, open the listing, choose your check-in and check-out dates, review the total price, then send your booking request.`,
+        conversationId: conversationId || createConversationId(),
+        timestamp: new Date().toISOString(),
+        hasListingContext: true,
+        results: matchedListings,
+      });
+      return;
     }
 
     // Create support chatbot prompt with comprehensive platform knowledge
@@ -300,14 +619,26 @@ Listing Context:
 You are a professional AI assistant for an Airbnb-style vacation rental platform. You have comprehensive knowledge about how the platform works and can provide specific, accurate information about features and processes.
 
 ${listingContext}
+${platformContext}
+
+CRITICAL PROJECT RULES:
+- Answer like a real helpful person in conversation, not like a static FAQ.
+- If the guest asks about a specific property, service, amenity, price, location, host, or booking details, use the LISTING DETAILS above.
+- Never invent amenities, services, prices, policies, photos, or host details that are not shown in the listing details.
+- If no listing details are provided for a named property, say you cannot find that stay right now and suggest searching the listings page.
+- When explaining how to book, connect the steps to the actual listing if listing details are available.
+- Do not use technical words with guests such as "database", "backend", "record", "query", "API", or "context". Use simple words such as "listing details", "your booking", "the stay", and "the app".
+- Keep the answer related to this project: listings, bookings, reviews, payments, messages, host/guest accounts, and support.
+- If the user asks something outside this project, politely say you can only help with this booking platform and suggest a related question.
+- Explain listing approval simply: a host submits a place, an admin checks it, then the admin publishes it so guests can see and book it.
 
 PLATFORM FEATURES & PROCESSES YOU MUST KNOW:
 
 1. BOOKING PROCESS:
-   - Guests browse listings by location, type (APARTMENT, HOUSE, STUDIO, CONDO), price, and guest capacity
+   - Guests browse only admin-approved listings by location, type (APARTMENT, HOUSE, VILLA, CABIN, STUDIO, CONDO), price, and guest capacity
    - To book: Select dates → Review total price → Confirm booking → Payment processed
-   - Booking statuses: PENDING (awaiting host confirmation) → CONFIRMED (approved by host) → CANCELLED (if cancelled)
-   - Guests receive email confirmation with booking details and host contact information
+   - After a guest requests a booking, the host confirms it or cancels it
+   - Guests receive email confirmation with booking details
    - Check-in time: 3:00 PM | Check-out time: 11:00 AM (standard, may vary by listing)
 
 2. CANCELLATION POLICIES:
@@ -322,7 +653,7 @@ PLATFORM FEATURES & PROCESSES YOU MUST KNOW:
    - Payment methods: Credit/debit cards, PayPal (secure payment processing)
    - Payment is charged immediately upon booking confirmation
    - Hosts receive payment 24 hours after guest check-in
-   - Manage payment methods: Dashboard → Account Settings → Payment Methods
+   - Manage payment methods from Account Settings, then Payment Methods
 
 4. REVIEWS & RATINGS:
    - Guests can review listings after check-out (1-5 stars + written comment)
@@ -333,12 +664,12 @@ PLATFORM FEATURES & PROCESSES YOU MUST KNOW:
 
 5. HOST COMMUNICATION:
    - Message hosts directly through the platform messaging system
-   - Access messages: Dashboard → Messages
-   - Hosts typically respond within 24 hours
-   - For urgent matters during your stay, use the host's emergency contact number (provided after booking)
+   - Access messages from the Messages page
+   - Hosts can reply to guest messages for their bookings
+   - If the guest needs a call or urgent manual help, explain that support/admin can use the contact details on the user account or booking
 
 6. ACCOUNT FEATURES:
-   - Guest Dashboard: View upcoming trips, booking history, total spending, quick actions
+   - Guest home area: View upcoming trips, booking history, total spending, and quick actions
    - Become a Host: Guests can upgrade to host role through 7-step wizard (Property Type → Place Type → Location → Basics → Amenities → Photos → Details)
    - Profile Settings: Update personal info, avatar, password, notification preferences
    - Saved Listings: Bookmark favorite properties for later
@@ -353,12 +684,12 @@ PLATFORM FEATURES & PROCESSES YOU MUST KNOW:
    - All hosts are verified with ID verification
    - Secure payment processing (never pay outside the platform)
    - 24/7 customer support for emergencies
-   - Report issues: Dashboard → Help Center → Report a Problem
+   - Report issues from the Help Center, then Report a Problem
    - Emergency contact: Available in booking confirmation email
 
 9. SPECIAL FEATURES:
-   - AI-powered listing recommendations based on preferences
-   - Smart search with natural language understanding
+   - Listing recommendations based on guest preferences
+   - Search using normal everyday language
    - Automated email notifications for bookings, confirmations, reminders
    - Review summaries generated by AI
    - Multi-language support
@@ -369,6 +700,7 @@ RESPONSE GUIDELINES:
 - Provide specific, step-by-step instructions referencing actual platform features
 - Use professional, friendly tone
 - Keep responses concise (under 250 words) but comprehensive
+- Prioritize the exact listing details over general advice whenever listing details are available
 - Reference specific dashboard sections, buttons, or navigation paths when relevant
 - If the question is about a feature that exists on the platform, explain exactly how to use it
 - Only say "contact support" for issues requiring manual intervention (payment disputes, account suspension, etc.)
@@ -387,9 +719,10 @@ Response:`;
 
       res.status(200).json({
         response,
-        conversationId: conversationId || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        conversationId: conversationId || createConversationId(),
         timestamp: new Date().toISOString(),
-        hasListingContext: !!listingId && !!listingContext
+        hasListingContext: matchedListings.length > 0,
+        results: matchedListings.length ? matchedListings : undefined
       });
 
     } catch (aiError: any) {
@@ -428,6 +761,7 @@ export const getBookingRecommendations = async (req: Request, res: Response): Pr
 
     // Build search criteria
     const whereClause: any = {
+      isPublished: true,
       guests: { gte: guests }
     };
 

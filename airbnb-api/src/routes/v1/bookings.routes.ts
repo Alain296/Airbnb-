@@ -8,6 +8,7 @@ import {
   updateBookingStatus,
   modifyBooking,
 } from "../../controllers/bookings.controller";
+import { getBookingMessages, sendBookingMessage } from "../../controllers/messages.controller";
 import { authenticate, requireGuest } from "../../middlewares/auth.middleware";
 import { strictLimiter } from "../../middlewares/rateLimiter";
 import { validate } from "../../middlewares/validate.middleware";
@@ -20,6 +21,9 @@ import {
 } from "../../validators/bookings.validator";
 
 const bookingsRouter = Router();
+
+bookingsRouter.get("/:bookingId/messages", authenticate, getBookingMessages);
+bookingsRouter.post("/:bookingId/messages", authenticate, sendBookingMessage);
 
 /**
  * @swagger

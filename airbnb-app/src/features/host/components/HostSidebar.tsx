@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiHome, FiGrid, FiCalendar, FiStar, FiPlusCircle, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiGrid, FiCalendar, FiStar, FiPlusCircle, FiLogOut, FiUser } from 'react-icons/fi';
 import { useAuth } from '../../auth/hooks/useAuth';
 
 const accent = '#ff5722';
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { Icon: FiGrid,       label: 'Dashboard',        path: '/host/dashboard' },
   { Icon: FiCalendar,   label: 'Booking Requests', path: '/host/bookings' },
   { Icon: FiStar,       label: 'Guest Reviews',    path: '/host/reviews' },
+  { Icon: FiUser,       label: 'Personal Info',    path: '/host/personal-info' },
   { Icon: FiPlusCircle, label: 'Create Listing',   path: '/host/listings/new' },
 ];
 

@@ -75,14 +75,12 @@ function VirtualList({ sorted, viewMode, dark }: VirtualListProps) {
 }
 
 const CATEGORY_KEYS = [
-  { name: 'Eat & Drink', key: 'eat-drink' },
-  { name: 'Coaching',    key: 'coaching' },
-  { name: 'Apartments',  key: 'apartments' },
-  { name: 'Services',    key: 'services' },
-  { name: 'Classifieds', key: 'classifieds' },
-  { name: 'Fitness',     key: 'fitness' },
-  { name: 'Events',      key: 'events' },
-  { name: 'Other',       key: 'other' },
+  { name: 'Apartments', key: 'APARTMENT' },
+  { name: 'Houses',     key: 'HOUSE' },
+  { name: 'Villas',     key: 'VILLA' },
+  { name: 'Cabins',     key: 'CABIN' },
+  { name: 'Condos',     key: 'CONDO' },
+  { name: 'Studios',    key: 'STUDIO' },
 ];
 
 const sortOptions = ['Latest', 'Nearby', 'Top rated', 'Random', 'A-Z'];

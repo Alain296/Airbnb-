@@ -38,7 +38,7 @@ export default function EditListingPage() {
       pricePerNight:      100,
       type:               'APARTMENT',
       cancellationPolicy: 'FLEXIBLE',
-      isPublished:        true,
+      isPublished:        false,
     },
   });
 
@@ -59,7 +59,7 @@ export default function EditListingPage() {
       type:               ((listing as any).type ?? 'APARTMENT') as ListingFormData['type'],
       amenities:          (listing as any).amenities ?? [],
       cancellationPolicy: ((listing as any).cancellationPolicy ?? 'FLEXIBLE') as ListingFormData['cancellationPolicy'],
-      isPublished:        (listing as any).isPublished ?? true,
+      isPublished:        (listing as any).isPublished ?? false,
       minNights:          (listing as any).minNights ?? 1,
       maxNights:          (listing as any).maxNights ?? undefined,
       rating:             listing.rating ?? undefined,
@@ -67,7 +67,7 @@ export default function EditListingPage() {
   }, [listing, reset]);
 
   const selectedAmenities = watch('amenities') ?? [];
-  const isPublished = watch('isPublished');
+  const isPublished = Boolean((listing as any)?.isPublished);
 
   const toggleAmenity = (amenity: string) => {
     setValue(
@@ -279,27 +279,21 @@ export default function EditListingPage() {
             </div>
           </Section>
 
-          {/* ── Publish Toggle ──────────────────────────────────── */}
-          <Section title="Publish Settings">
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '14px 16px', borderRadius: 10,
-              border: `1.5px solid ${isPublished ? '#16a34a' : '#e5e7eb'}`,
-              background: isPublished ? '#f0fdf4' : 'white',
-              cursor: 'pointer',
+          {/* ── Approval Status ─────────────────────────────────── */}
+          <Section title="Approval Status">
+            <div style={{
+              padding: '14px 16px',
+              borderRadius: 10,
+              border: `1.5px solid ${isPublished ? '#16a34a' : '#fbbf24'}`,
+              background: isPublished ? '#f0fdf4' : '#fffbeb',
             }}>
-              <input type="checkbox" {...register('isPublished')} style={{ width: 18, height: 18, accentColor: '#16a34a', cursor: 'pointer' }} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: isPublished ? '#16a34a' : '#374151' }}>
-                  {isPublished ? '✓ Published — visible to guests' : 'Draft — hidden from guests'}
-                </div>
-                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-                  {isPublished
-                    ? 'Uncheck to hide this listing from search results.'
-                    : 'Check to make this listing visible to guests.'}
-                </div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: isPublished ? '#16a34a' : '#92400e' }}>
+                {isPublished ? 'Published by admin' : 'Pending admin review'}
               </div>
-            </label>
+              <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+                Saving changes sends the listing back to admin review before guests can see the updated version.
+              </div>
+            </div>
           </Section>
 
           {/* ── Error / Submit ──────────────────────────────────── */}

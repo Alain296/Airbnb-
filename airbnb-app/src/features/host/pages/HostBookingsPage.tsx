@@ -1,22 +1,39 @@
-import { useState } from 'react';
-import { FiCheck, FiX, FiCalendar, FiDollarSign, FiUser, FiAlertCircle } from 'react-icons/fi';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  FiAlertCircle, FiCalendar, FiCheck, FiDollarSign, FiHome,
+  FiMapPin, FiMessageSquare, FiSearch, FiSend, FiUser, FiX,
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import { HostLayout } from '../components/HostLayout';
 import { Spinner } from '../../../shared/components/Spinner';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useMyListings } from '../hooks/useMyListings';
 import { useHostBookings } from '../hooks/useHostBookings';
 import { useUpdateBookingStatus } from '../hooks/useUpdateBookingStatus';
-import toast from 'react-hot-toast';
+import { api } from '../../../lib/api';
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  PENDING:   { background: '#fef9c3', color: '#854d0e' },
+  PENDING: { background: '#fef9c3', color: '#854d0e' },
   CONFIRMED: { background: '#dcfce7', color: '#166534' },
   CANCELLED: { background: '#fee2e2', color: '#991b1b' },
 };
 
+const HOST_MESSAGE_TEMPLATES = [
+  'Hello, thank you for your booking request. I will be happy to host you.',
+  'Hi, could you please confirm your arrival time for check-in?',
+  'Hello, I have received your message and will share the details shortly.',
+];
+
 type FilterTab = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 
-/* ── Decline reason modal ───────────────────────────────────────────── */
+type BookingMessage = {
+  id: string;
+  bookingId: string;
+  text: string;
+  createdAt: string;
+  sender?: { id: string; role?: string; name?: string; avatar?: string };
+};
+
 function DeclineModal({
   bookingId,
   guestName,
@@ -29,7 +46,7 @@ function DeclineModal({
   const [reason, setReason] = useState('');
   const updateStatus = useUpdateBookingStatus();
 
-  const PRESET_REASONS = [
+  const presetReasons = [
     'The dates are no longer available.',
     'The listing is under maintenance.',
     'The guest count exceeds capacity.',
@@ -38,7 +55,11 @@ function DeclineModal({
   ];
 
   const handleDecline = async () => {
-    if (!reason.trim()) { toast.error('Please provide a reason for declining.'); return; }
+    if (!reason.trim()) {
+      toast.error('Please provide a reason for declining.');
+      return;
+    }
+
     try {
       await updateStatus.mutateAsync({ id: bookingId, status: 'CANCELLED' });
       toast.success('Booking declined. The guest has been notified.');
@@ -53,7 +74,7 @@ function DeclineModal({
       <div style={{ background: 'white', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1a1a1a' }}>Decline Booking Request</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+          <button onClick={onClose} style={iconButton} title="Close">
             <FiX size={22} />
           </button>
         </div>
@@ -70,17 +91,17 @@ function DeclineModal({
             Select a reason
           </label>
           <div style={{ display: 'grid', gap: 8 }}>
-            {PRESET_REASONS.map((r) => (
-              <label key={r} style={{
+            {presetReasons.map((item) => (
+              <label key={item} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                border: `1.5px solid ${reason === r ? '#ff5722' : '#e5e7eb'}`,
-                background: reason === r ? '#fff7f2' : 'white',
+                border: `1.5px solid ${reason === item ? '#ff5722' : '#e5e7eb'}`,
+                background: reason === item ? '#fff7f2' : 'white',
               }}>
-                <input type="radio" name="reason" value={r} checked={reason === r}
-                  onChange={() => setReason(r)} style={{ accentColor: '#ff5722' }} />
-                <span style={{ fontSize: 13, color: reason === r ? '#ff5722' : '#374151', fontWeight: reason === r ? 600 : 400 }}>
-                  {r}
+                <input type="radio" name="reason" value={item} checked={reason === item}
+                  onChange={() => setReason(item)} style={{ accentColor: '#ff5722' }} />
+                <span style={{ fontSize: 13, color: reason === item ? '#ff5722' : '#374151', fontWeight: reason === item ? 600 : 400 }}>
+                  {item}
                 </span>
               </label>
             ))}
@@ -96,9 +117,7 @@ function DeclineModal({
             rows={3}
             style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
             onChange={(e) => {
-              if (!PRESET_REASONS.slice(0, 4).includes(reason)) {
-                setReason(e.target.value);
-              }
+              if (!presetReasons.slice(0, 4).includes(reason)) setReason(e.target.value);
             }}
           />
         </div>
@@ -116,9 +135,7 @@ function DeclineModal({
           >
             {updateStatus.isPending ? 'Declining...' : 'Decline Booking'}
           </button>
-          <button onClick={onClose} style={{ background: 'white', color: '#374151', border: '1px solid #d1d5db', borderRadius: 8, padding: '12px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-            Cancel
-          </button>
+          <button onClick={onClose} style={btnGhost}>Cancel</button>
         </div>
       </div>
     </div>
@@ -128,49 +145,97 @@ function DeclineModal({
 export default function HostBookingsPage() {
   const { userId } = useAuth();
   const [tab, setTab] = useState<FilterTab>('ALL');
+  const [activeId, setActiveId] = useState('');
+  const [messages, setMessages] = useState<BookingMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messageError, setMessageError] = useState('');
   const [declineBooking, setDeclineBooking] = useState<{ id: string; guestName: string } | null>(null);
 
   const { data: listings = [], isLoading: listingsLoading } = useMyListings(userId);
   const hostListingIds = listings.map((l) => String(l.id));
-
   const { data: bookings = [], isLoading: bookingsLoading, isError, error, refetch } = useHostBookings(hostListingIds);
   const updateStatus = useUpdateBookingStatus();
 
-  const isLoading = listingsLoading || bookingsLoading;
-  const listingMap = Object.fromEntries(listings.map((l) => [String(l.id), l]));
-  const filtered = tab === 'ALL' ? bookings : bookings.filter((b) => b.status === tab);
+  const listingMap = Object.fromEntries(listings.map((listing) => [String(listing.id), listing]));
+  const filtered = useMemo(
+    () => tab === 'ALL' ? bookings : bookings.filter((booking) => booking.status === tab),
+    [bookings, tab],
+  );
+  const activeBooking = filtered.find((booking) => String(booking.id) === activeId) ?? filtered[0];
+  const bookingMessages = messages.filter((message) => message.bookingId === String(activeBooking?.id));
 
   const counts = {
-    ALL:       bookings.length,
-    PENDING:   bookings.filter((b) => b.status === 'PENDING').length,
-    CONFIRMED: bookings.filter((b) => b.status === 'CONFIRMED').length,
-    CANCELLED: bookings.filter((b) => b.status === 'CANCELLED').length,
+    ALL: bookings.length,
+    PENDING: bookings.filter((booking) => booking.status === 'PENDING').length,
+    CONFIRMED: bookings.filter((booking) => booking.status === 'CONFIRMED').length,
+    CANCELLED: bookings.filter((booking) => booking.status === 'CANCELLED').length,
   };
 
-  return (
-    <HostLayout title="Booking Requests" subtitle="Accept or decline guest booking requests for your listings.">
+  useEffect(() => {
+    if (filtered.length > 0 && !filtered.some((booking) => String(booking.id) === activeId)) {
+      setActiveId(String(filtered[0].id));
+    }
+  }, [activeId, filtered]);
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
-        {(['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED'] as FilterTab[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
+  useEffect(() => {
+    if (!activeBooking) return;
+    setMessagesLoading(true);
+    setMessageError('');
+    api.get<{ messages: BookingMessage[] }>(`/bookings/${activeBooking.id}/messages`)
+      .then((res) => setMessages((res.messages ?? []).map((message) => ({ ...message, bookingId: String(message.bookingId) }))))
+      .catch((err) => setMessageError((err as Error).message))
+      .finally(() => setMessagesLoading(false));
+  }, [activeBooking?.id]);
+
+  const sendReply = async () => {
+    if (!activeBooking || !draft.trim()) return;
+
+    const text = draft.trim();
+    setDraft('');
+    try {
+      const res = await api.post<{ message: BookingMessage }>(`/bookings/${activeBooking.id}/messages`, { text });
+      setMessages((prev) => [...prev, { ...res.message, bookingId: String(res.message.bookingId) }]);
+    } catch (err) {
+      setDraft(text);
+      setMessageError((err as Error).message);
+    }
+  };
+
+  const changeStatus = (id: string, status: 'CONFIRMED' | 'CANCELLED') => {
+    updateStatus.mutate({ id, status }, {
+      onSuccess: () => {
+        toast.success(status === 'CONFIRMED' ? 'Booking accepted' : 'Booking cancelled');
+        refetch();
+      },
+      onError: (e) => toast.error((e as Error).message),
+    });
+  };
+
+  if (listingsLoading || bookingsLoading) {
+    return <HostLayout title="Booking Requests" subtitle="Review requests and reply to guests."><Spinner /></HostLayout>;
+  }
+
+  return (
+    <HostLayout title="Booking Requests" subtitle="Review requests and reply to guests.">
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #e5e7eb', overflowX: 'auto' }}>
+        {(['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED'] as FilterTab[]).map((item) => (
+          <button key={item} onClick={() => setTab(item)}
             style={{
               border: 'none', background: 'none', cursor: 'pointer',
-              padding: '10px 16px', fontWeight: tab === t ? 700 : 500,
-              fontSize: 14, color: tab === t ? '#ff5722' : '#555',
-              borderBottom: tab === t ? '2px solid #ff5722' : '2px solid transparent',
+              padding: '10px 16px', fontWeight: tab === item ? 700 : 500,
+              fontSize: 14, color: tab === item ? '#ff5722' : '#555',
+              borderBottom: tab === item ? '2px solid #ff5722' : '2px solid transparent',
               marginBottom: -1, display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            {t}
-            <span style={{ background: tab === t ? '#ff5722' : '#e5e7eb', color: tab === t ? 'white' : '#555', borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>
-              {counts[t]}
+            {item}
+            <span style={{ background: tab === item ? '#ff5722' : '#e5e7eb', color: tab === item ? 'white' : '#555', borderRadius: 999, fontSize: 11, fontWeight: 700, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>
+              {counts[item]}
             </span>
           </button>
         ))}
       </div>
-
-      {isLoading && <Spinner />}
 
       {isError && (
         <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: 16 }}>
@@ -180,98 +245,33 @@ export default function HostBookingsPage() {
         </div>
       )}
 
-      {!isLoading && !isError && filtered.length === 0 && (
+      {!isError && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: '#888' }}>
           <FiCalendar size={48} strokeWidth={1} style={{ marginBottom: 12, opacity: 0.4 }} />
-          <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#374151' }}>
-            No {tab !== 'ALL' ? tab.toLowerCase() : ''} bookings
-          </p>
-          <p style={{ fontSize: 13, margin: 0 }}>
-            {tab === 'PENDING' ? 'No pending requests right now.' : 'Nothing to show for this filter.'}
-          </p>
+          <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#374151' }}>No {tab !== 'ALL' ? tab.toLowerCase() : ''} bookings</p>
+          <p style={{ fontSize: 13, margin: 0 }}>{tab === 'PENDING' ? 'No pending requests right now.' : 'Nothing to show for this filter.'}</p>
         </div>
       )}
 
-      <div style={{ display: 'grid', gap: 14 }}>
-        {filtered.map((booking) => {
-          const listing = listingMap[String(booking.listingId ?? booking.listing?.id)];
-          const photo   = booking.listing?.photos?.[0]?.url || listing?.img || `https://picsum.photos/seed/bk-${booking.id}/200/130`;
-          const checkIn  = String(booking.checkIn  ?? '').slice(0, 10);
-          const checkOut = String(booking.checkOut ?? '').slice(0, 10);
-          const nights   = checkIn && checkOut
-            ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000))
-            : '—';
-          const guestName  = booking.guest?.name ?? booking.guest?.username ?? 'Guest';
-          const guestEmail = booking.guest?.email ?? '';
-          const isPending  = booking.status === 'PENDING';
-          const isActing   = updateStatus.isPending && (updateStatus.variables as any)?.id === String(booking.id);
-
-          return (
-            <div key={booking.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 14, padding: 18, display: 'flex', gap: 16, alignItems: 'flex-start', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <img src={photo} alt={listing?.title ?? 'Listing'}
-                style={{ width: 130, height: 90, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://picsum.photos/seed/bk-${booking.id}/200/130`; }} />
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: '#1a1a1a' }}>
-                  {booking.listing?.title ?? listing?.title ?? 'Listing'}
-                </div>
-                <div style={{ fontSize: 13, color: '#555', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <FiUser size={13} />
-                  <span style={{ fontWeight: 600 }}>{guestName}</span>
-                  {guestEmail && <span style={{ color: '#888' }}>· {guestEmail}</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#555', marginBottom: 10 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <FiCalendar size={13} /> {checkIn} to {checkOut} ({nights} night{nights !== 1 ? 's' : ''})
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <FiDollarSign size={13} /> <strong>${Number(booking.totalPrice ?? 0).toFixed(2)}</strong>
-                  </span>
-                </div>
-                <span style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, ...(STATUS_STYLE[booking.status] ?? STATUS_STYLE.PENDING) }}>
-                  {booking.status}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
-                {isPending && (
-                  <>
-                    <button
-                      disabled={isActing}
-                      onClick={() => {
-                        updateStatus.mutate({ id: String(booking.id), status: 'CONFIRMED' }, {
-                          onSuccess: () => toast.success('Booking accepted'),
-                          onError: (e) => toast.error((e as Error).message),
-                        });
-                      }}
-                      style={{ ...btnAccept, opacity: isActing ? 0.6 : 1, cursor: isActing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <FiCheck size={14} /> Accept
-                    </button>
-                    <button
-                      disabled={isActing}
-                      onClick={() => setDeclineBooking({ id: String(booking.id), guestName })}
-                      style={{ ...btnDecline, opacity: isActing ? 0.6 : 1, cursor: isActing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <FiX size={14} /> Decline
-                    </button>
-                  </>
-                )}
-                {booking.status === 'CONFIRMED' && (
-                  <button
-                    disabled={isActing}
-                    onClick={() => setDeclineBooking({ id: String(booking.id), guestName })}
-                    style={{ ...btnDecline, opacity: isActing ? 0.6 : 1, cursor: isActing ? 'not-allowed' : 'pointer' }}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {!isError && activeBooking && (
+        <ConversationView
+          activeBooking={activeBooking}
+          filtered={filtered}
+          listingMap={listingMap}
+          messages={messages}
+          bookingMessages={bookingMessages}
+          draft={draft}
+          messagesLoading={messagesLoading}
+          messageError={messageError}
+          activeId={activeId}
+          isActing={updateStatus.isPending && (updateStatus.variables as any)?.id === String(activeBooking.id)}
+          onSelect={setActiveId}
+          onDraft={setDraft}
+          onSend={sendReply}
+          onAccept={() => changeStatus(String(activeBooking.id), 'CONFIRMED')}
+          onDecline={() => setDeclineBooking({ id: String(activeBooking.id), guestName: activeBooking.guest?.name ?? activeBooking.guest?.username ?? 'Guest' })}
+        />
+      )}
 
       {declineBooking && (
         <DeclineModal
@@ -284,6 +284,298 @@ export default function HostBookingsPage() {
   );
 }
 
-const btnAccept: React.CSSProperties = { background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 13, minWidth: 100 };
-const btnDecline: React.CSSProperties = { background: 'white', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 13, minWidth: 100 };
-const btnGhost: React.CSSProperties = { background: 'white', color: '#444', border: '1px solid #ddd', borderRadius: 8, padding: '8px 14px', fontWeight: 600, cursor: 'pointer', fontSize: 13 };
+function ConversationView({
+  activeBooking,
+  filtered,
+  listingMap,
+  messages,
+  bookingMessages,
+  draft,
+  messagesLoading,
+  messageError,
+  activeId,
+  isActing,
+  onSelect,
+  onDraft,
+  onSend,
+  onAccept,
+  onDecline,
+}: any) {
+  const listing = activeBooking.listing ?? listingMap[String(activeBooking.listingId ?? activeBooking.listing?.id)] ?? {};
+  const guestName = activeBooking.guest?.name ?? activeBooking.guest?.username ?? 'Guest';
+  const guestEmail = activeBooking.guest?.email ?? '';
+  const guestAvatar = activeBooking.guest?.avatar;
+  const photo = listing?.photos?.[0]?.url || listing?.img || `https://picsum.photos/seed/host-msg-${activeBooking.id}/360/220`;
+  const checkIn = String(activeBooking.checkIn ?? '').slice(0, 10);
+  const checkOut = String(activeBooking.checkOut ?? '').slice(0, 10);
+  const nights = checkIn && checkOut
+    ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000))
+    : 1;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '300px minmax(0, 1fr)',
+      gap: 18,
+      height: 'min(650px, calc(100vh - 190px))',
+      minHeight: 540,
+      maxWidth: 1280,
+      margin: '0 auto',
+    }}>
+      <aside style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: 14, borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ position: 'relative' }}>
+            <FiSearch size={14} color="#9ca3af" style={{ position: 'absolute', left: 12, top: 11 }} />
+            <input placeholder="Search conversations" style={{ ...inp, paddingLeft: 34, marginTop: 0 }} />
+          </div>
+        </div>
+        <div style={{ maxHeight: 'calc(100% - 73px)', overflowY: 'auto' }}>
+          {filtered.map((booking: any) => {
+            const currentListing = booking.listing ?? listingMap[String(booking.listingId ?? booking.listing?.id)] ?? {};
+            const selected = String(booking.id) === String(activeId);
+            const last = [...messages].reverse().find((message) => message.bookingId === String(booking.id));
+            return (
+              <button
+                key={booking.id}
+                onClick={() => onSelect(String(booking.id))}
+                style={{
+                  width: '100%', border: 'none', borderBottom: '1px solid #f3f4f6',
+                  background: selected ? '#fff7f2' : 'white', padding: 14, cursor: 'pointer',
+                  display: 'flex', gap: 12, textAlign: 'left', alignItems: 'center',
+                }}
+              >
+                <img
+                  src={currentListing?.photos?.[0]?.url || currentListing?.img || `https://picsum.photos/seed/host-list-${booking.id}/80/80`}
+                  alt=""
+                  style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {booking.guest?.name ?? booking.guest?.username ?? 'Guest'}
+                    </span>
+                    <span style={{ fontSize: 10, color: '#9ca3af', flexShrink: 0 }}>{booking.status}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                    {currentListing?.title ?? 'Listing'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 4 }}>
+                    {last ? last.text : 'No messages yet'}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      <section style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr) auto', minHeight: 0 }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#f3f4f6', overflow: 'hidden', flexShrink: 0 }}>
+              {guestAvatar
+                ? <img src={guestAvatar} alt={guestName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: '#6b7280', fontWeight: 800 }}>{guestName.charAt(0).toUpperCase()}</div>}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1a1a1a' }}>{guestName}</h2>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Booking {listing?.title ?? 'your listing'}
+              </p>
+            </div>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 999, ...(STATUS_STYLE[activeBooking.status] ?? STATUS_STYLE.PENDING) }}>
+            {activeBooking.status}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 270px', minHeight: 0 }}>
+          <div style={{ padding: 18, overflowY: 'auto', background: '#f8f9fa' }}>
+            {messagesLoading && <p style={{ margin: '0 0 12px', fontSize: 13, color: '#6b7280' }}>Loading messages...</p>}
+            {messageError && <p style={{ margin: '0 0 12px', fontSize: 13, color: '#b91c1c' }}>{messageError}</p>}
+            {!messagesLoading && bookingMessages.length === 0 && (
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: 18, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>
+                  <FiMessageSquare size={16} color="#ff5722" /> Start the guest conversation
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>
+                  Confirm arrival details, answer questions, or share anything the guest needs before check-in.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gap: 10 }}>
+              {bookingMessages.map((message: BookingMessage) => {
+                const mine = message.sender?.role === 'HOST';
+                return (
+                  <div key={message.id} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '68%',
+                      borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                      background: mine ? '#ff5722' : 'white',
+                      color: mine ? 'white' : '#1a1a1a',
+                      padding: '10px 12px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                    }}>
+                      <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{message.text}</div>
+                      <div style={{ fontSize: 10, opacity: 0.75, marginTop: 5, textAlign: 'right' }}>
+                        {new Date(message.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside style={{ borderLeft: '1px solid #f0f0f0', padding: 16, background: 'white', overflowY: 'auto' }}>
+            <img src={photo} alt="" style={{ width: '100%', height: 120, borderRadius: 10, objectFit: 'cover', marginBottom: 12 }} />
+            <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800, color: '#1a1a1a' }}>{listing?.title ?? 'Listing'}</h3>
+            <InfoLine Icon={FiUser} text={guestEmail ? `${guestName} - ${guestEmail}` : guestName} />
+            <InfoLine Icon={FiMapPin} text={listing?.location ?? 'Location pending'} />
+            <InfoLine Icon={FiCalendar} text={`${checkIn} to ${checkOut} (${nights} night${nights === 1 ? '' : 's'})`} />
+            <InfoLine Icon={FiDollarSign} text={`$${Number(activeBooking.totalPrice ?? 0).toFixed(2)}`} />
+            <InfoLine Icon={FiHome} text={`Booking #${String(activeBooking.id ?? '').slice(0, 8).toUpperCase()}`} />
+
+            <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
+              {activeBooking.status === 'PENDING' && (
+                <>
+                  <button disabled={isActing} onClick={onAccept} style={{ ...btnAccept, opacity: isActing ? 0.6 : 1 }}>
+                    <FiCheck size={14} /> Accept
+                  </button>
+                  <button disabled={isActing} onClick={onDecline} style={{ ...btnDecline, opacity: isActing ? 0.6 : 1 }}>
+                    <FiX size={14} /> Decline
+                  </button>
+                </>
+              )}
+              {activeBooking.status === 'CONFIRMED' && (
+                <button disabled={isActing} onClick={onDecline} style={{ ...btnDecline, opacity: isActing ? 0.6 : 1 }}>
+                  <FiX size={14} /> Cancel booking
+                </button>
+              )}
+            </div>
+
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', marginBottom: 8 }}>Quick messages</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {HOST_MESSAGE_TEMPLATES.map((template) => (
+                  <button key={template} onClick={() => onDraft(template)}
+                    style={{ border: '1px solid #e5e7eb', background: 'white', borderRadius: 8, padding: 9, fontSize: 12, color: '#374151', textAlign: 'left', cursor: 'pointer', lineHeight: 1.4 }}>
+                    {template}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div style={{ borderTop: '1px solid #f0f0f0', padding: 14, background: 'white' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+            <textarea
+              value={draft}
+              onChange={(e) => onDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onSend();
+                }
+              }}
+              placeholder="Write a professional message to your guest..."
+              rows={2}
+              style={{ ...inp, marginTop: 0, resize: 'none', lineHeight: 1.5, minHeight: 46 }}
+            />
+            <button
+              onClick={onSend}
+              disabled={!draft.trim()}
+              style={{
+                background: draft.trim() ? '#ff5722' : '#f3f4f6',
+                color: draft.trim() ? 'white' : '#9ca3af',
+                border: 'none',
+                borderRadius: 10,
+                width: 46,
+                height: 46,
+                cursor: draft.trim() ? 'pointer' : 'not-allowed',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+              }}
+              title="Send message"
+            >
+              <FiSend size={18} />
+            </button>
+          </div>
+          <p style={{ margin: '7px 0 0', fontSize: 11, color: '#9ca3af' }}>
+            Messages are shared with the guest in this booking conversation.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InfoLine({ Icon, text }: { Icon: React.ComponentType<{ size?: number; color?: string }>; text: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6b7280', marginBottom: 7 }}>
+      <Icon size={13} color="#9ca3af" />
+      <span style={{ overflowWrap: 'anywhere' }}>{text}</span>
+    </div>
+  );
+}
+
+const inp: React.CSSProperties = {
+  width: '100%',
+  border: '1px solid #d1d5db',
+  borderRadius: 8,
+  padding: '10px 12px',
+  fontSize: 14,
+  marginTop: 4,
+  boxSizing: 'border-box',
+};
+
+const iconButton: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: '#6b7280',
+};
+
+const btnGhost: React.CSSProperties = {
+  background: 'white',
+  color: '#444',
+  border: '1px solid #ddd',
+  borderRadius: 8,
+  padding: '8px 14px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  fontSize: 13,
+};
+
+const btnAccept: React.CSSProperties = {
+  background: '#16a34a',
+  color: 'white',
+  border: 'none',
+  borderRadius: 8,
+  padding: '9px 14px',
+  fontWeight: 700,
+  fontSize: 13,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+};
+
+const btnDecline: React.CSSProperties = {
+  background: 'white',
+  color: '#b91c1c',
+  border: '1px solid #fca5a5',
+  borderRadius: 8,
+  padding: '9px 14px',
+  fontWeight: 700,
+  fontSize: 13,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+};

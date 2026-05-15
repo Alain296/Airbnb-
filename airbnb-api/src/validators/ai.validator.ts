@@ -29,7 +29,7 @@ export const generateDescriptionValidator = z.object({
     location: z.string()
       .min(1, "Location is required")
       .max(100, "Location must be less than 100 characters"),
-    type: z.enum(["APARTMENT", "HOUSE", "STUDIO", "CONDO"]),
+    type: z.enum(["APARTMENT", "HOUSE", "VILLA", "CABIN", "STUDIO", "CONDO"]),
     guests: z.number()
       .int("Guests must be an integer")
       .min(1, "Guests must be at least 1")
@@ -78,7 +78,7 @@ export const bookingRecommendationsValidator = z.object({
         .min(1, "Guests must be at least 1")
         .max(20, "Guests cannot exceed 20"),
       amenities: z.array(z.string()).optional(),
-      type: z.enum(["APARTMENT", "HOUSE", "STUDIO", "CONDO"]).optional()
+      type: z.enum(["APARTMENT", "HOUSE", "VILLA", "CABIN", "STUDIO", "CONDO"]).optional()
     }),
     userId: z.string().uuid("Invalid user ID format").optional()
   })

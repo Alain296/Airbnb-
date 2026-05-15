@@ -9,7 +9,7 @@ import {
   getBlockedDates,
   setBlockedDates,
 } from "../../controllers/listings.controller";
-import { authenticate, requireHost } from "../../middlewares/auth.middleware";
+import { authenticate, optionalAuth, requireHost } from "../../middlewares/auth.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { searchLimiter, strictLimiter } from "../../middlewares/rateLimiter";
 import {
@@ -242,7 +242,7 @@ listingsRouter.get("/search", searchLimiter, searchListings);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-listingsRouter.get("/", validate(getAllListingsSchema), getAllListings);
+listingsRouter.get("/", optionalAuth, validate(getAllListingsSchema), getAllListings);
 
 /**
  * @swagger
@@ -272,7 +272,7 @@ listingsRouter.get("/", validate(getAllListingsSchema), getAllListings);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-listingsRouter.get("/:id", validate(getListingByIdSchema), getListingById);
+listingsRouter.get("/:id", optionalAuth, validate(getListingByIdSchema), getListingById);
 
 /**
  * @swagger

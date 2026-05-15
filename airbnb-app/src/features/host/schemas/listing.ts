@@ -18,7 +18,7 @@ export const CANCELLATION_POLICY_LABELS: Record<typeof CANCELLATION_POLICIES[num
 
 export const listingSchema = z.object({
   title:              z.string().min(10, 'Title must be at least 10 characters'),
-  description:        z.string().min(50, 'Description must be at least 50 characters'),
+  description:        z.string().optional().or(z.literal('')),
   location:           z.string().min(2, 'Location is required'),
   pricePerNight:      z.number().min(10, 'Price must be at least $10'),
   weekendPrice:       z.number().min(10).optional(),
@@ -30,10 +30,10 @@ export const listingSchema = z.object({
   type:               z.enum(['APARTMENT', 'HOUSE', 'VILLA', 'CABIN', 'CONDO', 'STUDIO']),
   amenities:          z.array(z.string()).min(1, 'At least one amenity is required'),
   cancellationPolicy: z.enum(CANCELLATION_POLICIES).default('FLEXIBLE'),
-  isPublished:        z.boolean().default(true),
+  isPublished:        z.boolean().default(false),
   minNights:          z.number().int().min(1).default(1),
   maxNights:          z.number().int().min(1).optional(),
   rating:             z.number().min(0).max(5).optional(),
 });
 
-export type ListingFormData = z.infer<typeof listingSchema>;
+export type ListingFormData = z.input<typeof listingSchema>;

@@ -34,37 +34,37 @@ const mockAI = {
       // Provide context-aware responses based on the question
       if (userQuestion.includes("book") && userQuestion.includes("listing")) {
         return {
-          content: "To book a listing, follow these steps:\n\n1. Browse listings by searching for your destination, dates, and number of guests\n2. Click on a listing that interests you to view full details\n3. Select your check-in and check-out dates on the calendar\n4. Review the total price (nightly rate × nights + fees)\n5. Click 'Book Now' and confirm your payment method\n6. Your booking will be PENDING until the host confirms it\n7. Once confirmed, you'll receive an email with check-in details and host contact information\n\nStandard check-in is at 3:00 PM and check-out at 11:00 AM. Need help with anything else?"
+          content: "To book a stay, follow these steps:\n\n1. Search for your destination, dates, and number of guests\n2. Open a place you like to view the full details\n3. Select your check-in and check-out dates\n4. Review the total price\n5. Click 'Book Now' and confirm your payment\n6. Your booking will wait for the host to confirm it\n7. Once confirmed, you will receive the check-in details and host contact information\n\nStandard check-in is 3:00 PM and check-out is 11:00 AM. Need help with anything else?"
         };
       }
       
       if (userQuestion.includes("after") && userQuestion.includes("book")) {
         return {
-          content: "After you book a listing, here's what happens:\n\n1. **Immediate**: Your payment is processed and held securely\n2. **Within 24 hours**: The host reviews and confirms your booking (status changes from PENDING to CONFIRMED)\n3. **Email confirmation**: You'll receive booking details, host contact info, and check-in instructions\n4. **Before check-in**: You can message the host through Dashboard → Messages for any questions\n5. **Check-in day**: Arrive at 3:00 PM (or time specified by host) and follow the provided instructions\n6. **During stay**: Contact host for any issues or questions\n7. **After check-out**: You can leave a review to help future guests\n\nYou can view all your bookings anytime in Dashboard → My Bookings. Need more details about any step?"
+          content: "After you book a stay, here's what happens:\n\n1. Your payment is handled safely\n2. The host reviews and confirms your booking\n3. You receive the booking details, host contact info, and check-in instructions\n4. Before check-in, you can message the host from Messages\n5. On check-in day, arrive at the time shared by the host\n6. During your stay, contact the host if you need help\n7. After check-out, you can leave a review\n\nYou can view your bookings anytime in My Bookings. Need more details about any step?"
         };
       }
       
       if (userQuestion.includes("cancel")) {
         return {
-          content: "Our cancellation policies vary by listing:\n\n**FLEXIBLE**: Full refund if cancelled 24+ hours before check-in\n**MODERATE**: Full refund if cancelled 5+ days before; 50% refund if 2-5 days before\n**STRICT**: Full refund if cancelled 7+ days before; 50% refund if 7-14 days before; No refund within 7 days\n\nTo cancel a booking:\n1. Go to Dashboard → My Bookings\n2. Select the booking you want to cancel\n3. Click 'Cancel Booking' button\n4. Confirm the cancellation\n5. Refunds are processed to your original payment method within 5-10 business days\n\nThe specific policy for your booking is shown in your booking confirmation. Need help with anything else?"
+          content: "Cancellation rules can be different for each stay:\n\nFlexible: full refund if you cancel at least 24 hours before check-in.\nModerate: full refund if you cancel at least 5 days before check-in.\nStrict: refund rules are tighter, especially close to check-in.\n\nTo cancel, open My Bookings, choose the booking, click 'Cancel Booking', and confirm. Any refund usually returns to your original payment method within 5-10 business days."
         };
       }
       
       if (userQuestion.includes("payment") || userQuestion.includes("pay")) {
         return {
-          content: "Here's everything about payments:\n\n**Accepted Methods**: Credit cards, debit cards, and PayPal\n\n**When you're charged**: Immediately upon booking confirmation\n\n**Total price includes**:\n- Nightly rate × number of nights\n- Service fees\n- Cleaning fees (if applicable)\n\n**Refunds**: Processed within 5-10 business days to your original payment method\n\n**Managing payment methods**:\n1. Go to Dashboard → Account Settings\n2. Click 'Payment Methods'\n3. Add, edit, or remove payment methods\n\n**Security**: All payments are processed securely. Never pay outside the platform. Need help with a specific payment issue?"
+          content: "Here is what to know about payments:\n\nAccepted methods: credit cards, debit cards, and PayPal.\n\nYou are charged when the booking is confirmed.\n\nThe total price includes the nightly price, the number of nights, and any extra fees shown before you pay.\n\nRefunds usually return to your original payment method within 5-10 business days.\n\nFor safety, always pay inside the app and never send money directly to a host."
         };
       }
       
       if (userQuestion.includes("review")) {
         return {
-          content: "To leave a review after your stay:\n\n1. Go to Dashboard → My Bookings\n2. Find your completed trip\n3. Click 'Write a Review' button\n4. Rate the listing (1-5 stars) - click on the big stars\n5. Write your detailed comment (10-1000 characters)\n6. Submit your review\n\n**Review criteria**:\n- Cleanliness\n- Accuracy (listing matched description)\n- Communication (host responsiveness)\n- Location\n- Check-in process\n- Overall value\n\nYour review helps other guests make informed decisions and helps hosts improve. Reviews are visible to everyone, and hosts can respond to them. Want to know more about the review system?"
+          content: "To leave a review after your stay:\n\n1. Open My Bookings\n2. Find your completed trip\n3. Click 'Write a Review'\n4. Choose your star rating\n5. Write your comment\n6. Submit your review\n\nYou can rate cleanliness, accuracy, communication, location, check-in, and value. Your review helps other guests choose the right place."
         };
       }
       
       if (userQuestion.includes("host") && (userQuestion.includes("contact") || userQuestion.includes("message"))) {
         return {
-          content: "To contact your host:\n\n1. Go to Dashboard → Messages\n2. Select the conversation with your host (or start a new one)\n3. Type your message and send\n\n**Response time**: Hosts typically respond within 24 hours\n\n**Before booking**: You can message hosts to ask questions about the property\n\n**After booking**: You'll receive the host's contact information in your confirmation email\n\n**During your stay**: For urgent matters, use the emergency contact number provided in your booking confirmation\n\n**What to ask hosts about**:\n- Check-in procedures and key pickup\n- Parking availability\n- Local recommendations\n- House rules clarification\n- Special requests\n\nNeed help with anything else?"
+          content: "To contact your host:\n\n1. Open Messages\n2. Choose the conversation for your booking\n3. Type your message and send\n\nHosts usually reply within 24 hours. You can ask about check-in, parking, local tips, house rules, or special requests. After booking, important contact details are also shared in your confirmation."
         };
       }
       
@@ -76,13 +76,13 @@ const mockAI = {
       
       if (userQuestion.includes("search") || userQuestion.includes("find")) {
         return {
-          content: "Finding the perfect listing is easy:\n\n**Smart Search** (AI-powered):\n- Use natural language like \"2 bedroom apartment in Paris under $150\"\n- Our AI understands your preferences and finds matching listings\n\n**Filter Options**:\n- Location (city, neighborhood, address)\n- Property type (Apartment, House, Studio, Condo)\n- Price range (min/max per night)\n- Guest capacity\n- Amenities (WiFi, Kitchen, Pool, Parking, etc.)\n- Dates (check availability)\n\n**View Options**:\n- Grid view: See listings as cards with photos and key details\n- Map view: Explore listings by location on an interactive map\n\n**Each listing shows**:\n- Photos, price per night, ratings, reviews\n- Amenities, host information, location\n- Availability calendar\n\nTry our smart search at the top of the page! What type of place are you looking for?"
+          content: "Finding a place is easy:\n\nUse the search box to type what you need, for example: \"2 bedroom apartment in Paris under $150\".\n\nYou can filter by location, place type, price, number of guests, amenities, and dates.\n\nEach listing shows photos, price per night, reviews, amenities, host information, location, and available dates.\n\nWhat type of place are you looking for?"
         };
       }
       
       // Default helpful response
       return {
-        content: "I'm here to help you with:\n\n• **Booking**: How to book, payment, confirmation process\n• **Cancellations**: Policies, refunds, how to cancel\n• **Reviews**: Leaving reviews, rating criteria\n• **Host Communication**: Messaging, response times, emergency contacts\n• **Account**: Becoming a host, profile settings, payment methods\n• **Search**: Finding listings, filters, smart search\n• **Support**: General questions, troubleshooting\n\nWhat would you like to know more about? Feel free to ask specific questions!"
+        content: "I can help you with bookings, cancellations, payments, reviews, messaging your host, account settings, and finding a place to stay.\n\nWhat would you like to know?"
       };
     }
     

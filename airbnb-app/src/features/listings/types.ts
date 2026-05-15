@@ -26,7 +26,9 @@ export interface Listing {
   minNights?: number;
   maxNights?: number;
   isPublished?: boolean;
-  category: 'eat-drink' | 'coaching' | 'apartments' | 'services' | 'classifieds' | 'fitness' | 'events' | 'other';
+  category:
+    | 'APARTMENT' | 'HOUSE' | 'VILLA' | 'CABIN' | 'CONDO' | 'STUDIO' | 'OTHER'
+    | 'eat-drink' | 'coaching' | 'apartments' | 'services' | 'classifieds' | 'fitness' | 'events' | 'other';
   lat?: number;
   lng?: number;
 }

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FiGlobe, FiHome, FiCoffee, FiTarget, FiActivity, FiCalendar,
-  FiTool, FiClipboard, FiSearch, FiMapPin, FiStar, FiHeart,
+  FiGlobe, FiHome, FiSearch, FiMapPin, FiStar, FiHeart,
   FiCheckCircle, FiXCircle, FiAward, FiMap,
 } from 'react-icons/fi';
 import { useListings } from '../hooks/useListings';
@@ -12,18 +11,17 @@ import { Footer } from '../../../shared/components/Footer';
 import { Spinner } from '../../../shared/components/Spinner';
 
 const CATEGORIES = [
-  { key: 'all',         label: 'All',         Icon: FiGlobe,     color: '#ff5722' },
-  { key: 'apartments',  label: 'Apartments',  Icon: FiHome,      color: '#3b82f6' },
-  { key: 'eat-drink',   label: 'Eat & Drink', Icon: FiCoffee,    color: '#f59e0b' },
-  { key: 'coaching',    label: 'Coaching',    Icon: FiTarget,    color: '#8b5cf6' },
-  { key: 'fitness',     label: 'Fitness',     Icon: FiActivity,  color: '#22c55e' },
-  { key: 'events',      label: 'Events',      Icon: FiCalendar,  color: '#ec4899' },
-  { key: 'services',    label: 'Services',    Icon: FiTool,      color: '#06b6d4' },
-  { key: 'classifieds', label: 'Classifieds', Icon: FiClipboard, color: '#f97316' },
+  { key: 'all',       label: 'All',        Icon: FiGlobe, color: '#ff5722' },
+  { key: 'APARTMENT', label: 'Apartments', Icon: FiHome,  color: '#3b82f6' },
+  { key: 'HOUSE',     label: 'Houses',     Icon: FiHome,  color: '#22c55e' },
+  { key: 'VILLA',     label: 'Villas',     Icon: FiHome,  color: '#8b5cf6' },
+  { key: 'CABIN',     label: 'Cabins',     Icon: FiHome,  color: '#f59e0b' },
+  { key: 'CONDO',     label: 'Condos',     Icon: FiHome,  color: '#06b6d4' },
+  { key: 'STUDIO',    label: 'Studios',    Icon: FiHome,  color: '#ec4899' },
 ];
 
 const fmtCat = (cat: string) =>
-  cat === 'eat-drink' ? 'Eat & Drink' : cat.charAt(0).toUpperCase() + cat.slice(1);
+  cat.replace('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function ExplorePage() {
   const navigate = useNavigate();
@@ -201,7 +199,7 @@ export default function ExplorePage() {
                         {listing.available ? <><FiCheckCircle size={11} /> Available</> : <><FiXCircle size={11} /> Booked</>}
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); toggle(listing.id, listing.title); }}
+                        onClick={(e) => { e.stopPropagation(); toggle(listing.id, listing.title, listing); }}
                         style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
                       >
                         <FiHeart size={16} fill={saved ? '#ff5722' : 'none'} color={saved ? '#ff5722' : '#666'} />
