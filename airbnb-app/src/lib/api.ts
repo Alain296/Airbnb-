@@ -1,4 +1,14 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
+const DEFAULT_API_URL = import.meta.env.PROD
+  ? 'https://airbnb-api-woxo.onrender.com/api/v1'
+  : 'http://localhost:3000/api/v1';
+
+const rawApiUrl = import.meta.env.VITE_API_URL ?? DEFAULT_API_URL;
+
+export const API_BASE_URL = rawApiUrl
+  .replace(/\/+$/, '')
+  .replace(/\/api\/v1$/, '') + '/api/v1';
+
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, '');
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
@@ -7,7 +17,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!isFormData && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
   });

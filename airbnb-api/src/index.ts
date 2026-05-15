@@ -12,23 +12,44 @@ import v1Router from "./routes/v1/index";
 
 const app = express();
 const PORT = Number(process.env["PORT"]) || 3000;
+const configuredCorsOrigins = [
+  process.env["FRONTEND_URL"],
+  process.env["API_URL"],
+  ...(process.env["CORS_ORIGINS"]?.split(",") ?? []),
+]
+  .map((origin) => origin?.trim().replace(/\/+$/, ""))
+  .filter((origin): origin is string => Boolean(origin));
+
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5175',
+  'https://airbnb-api-woxo.onrender.com',
+  'https://airbnb-pi-rust.vercel.app',
+  ...configuredCorsOrigins,
+]);
+
+const isAllowedVercelPreview = (origin: string) =>
+  /^https:\/\/airbnb-[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
 // Request logging (use 'combined' format in production, 'dev' in development)
 app.use(process.env["NODE_ENV"] === "production" ? morgan("combined") : morgan("dev"));
 
-// CORS configuration for Swagger UI
+// CORS configuration for the frontend, Swagger UI, and Vercel previews
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    'http://localhost:5175',
-    'http://127.0.0.1:5175',
-    'https://airbnb-api-woxo.onrender.com'
-  ],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin) || isAllowedVercelPreview(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

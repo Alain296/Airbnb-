@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
+import { API_BASE_URL } from '../../../lib/api';
 
 /**
  * Photo upload uses raw fetch with FormData — NOT api.post() —
@@ -12,7 +11,7 @@ export async function uploadListingPhotosRequest(listingId: string, files: File[
   const formData = new FormData();
   files.forEach((file) => formData.append('photos', file));
 
-  const res = await fetch(`${BASE_URL}/listings/${listingId}/photos`, {
+  const res = await fetch(`${API_BASE_URL}/listings/${listingId}/photos`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -27,7 +26,7 @@ export async function uploadListingPhotosRequest(listingId: string, files: File[
 
 async function deletePhoto(listingId: string, photoId: string) {
   const token = localStorage.getItem('token');
-  const res = await fetch(`${BASE_URL}/listings/${listingId}/photos/${photoId}`, {
+  const res = await fetch(`${API_BASE_URL}/listings/${listingId}/photos/${photoId}`, {
     method: 'DELETE',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

@@ -55,6 +55,9 @@ CLOUDINARY_API_SECRET=your-cloudinary-secret
 # Server Configuration
 PORT=3000
 NODE_ENV=production
+API_URL=https://your-render-service.onrender.com
+FRONTEND_URL=https://your-vercel-app.vercel.app
+CORS_ORIGINS=https://your-vercel-app.vercel.app
 ```
 
 ---

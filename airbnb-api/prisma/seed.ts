@@ -115,6 +115,7 @@ async function main() {
       type: "VILLA",
       amenities: ["WiFi", "Private Pool", "Beach Access", "Ocean Views", "Hot Tub", "Outdoor Kitchen", "Parking"],
       rating: 4.9,
+      isPublished: true,
       hostId: sarah.id,
     },
   });
@@ -129,6 +130,7 @@ async function main() {
       type: "CABIN",
       amenities: ["WiFi", "Fireplace", "Mountain Views", "Hiking Trails", "Kitchen", "Parking"],
       rating: 4.7,
+      isPublished: true,
       hostId: sarah.id,
     },
   });
@@ -143,6 +145,7 @@ async function main() {
       type: "APARTMENT", 
       amenities: ["WiFi", "City Views", "Air Conditioning", "Gym Access", "Rooftop Terrace", "Kitchen"],
       rating: 4.6,
+      isPublished: true,
       hostId: mike.id,
     },
   });
@@ -157,6 +160,7 @@ async function main() {
       type: "HOUSE",
       amenities: ["WiFi", "Garden", "Fireplace", "Kitchen", "Parking", "Country Views"],
       rating: 4.8,
+      isPublished: true,
       hostId: mike.id,
     },
   });
