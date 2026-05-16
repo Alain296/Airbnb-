@@ -66,6 +66,12 @@ app.use(generalLimiter);
 // Setup Swagger documentation
 setupSwagger(app);
 
+// Tolerate clients configured with API_URL values that already include /api/v1.
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  req.url = req.url.replace(/^\/api\/v1(?:\/api\/v1)+/i, "/api/v1");
+  next();
+});
+
 // Health check endpoint (before versioned routes)
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ 

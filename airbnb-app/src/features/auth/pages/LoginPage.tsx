@@ -7,7 +7,7 @@ import loginImage from '../../../assets/login_picture-removebg-preview.png';
 import registerImage from '../../../assets/register_picture-removebg-preview.png';
 import { Navbar } from '../../../shared/components/Navbar';
 import { Footer } from '../../../shared/components/Footer';
-import { API_ORIGIN } from '../../../lib/api';
+import { API_BASE_URL } from '../../../lib/api';
 
 /* ─── Laptop + Woman + Lock illustration (Login right panel) ─────────────── */
 function LaptopLockIllustration() {
@@ -211,7 +211,7 @@ export default function LoginPage() {
           {/* Apple — decorative only (requires Apple Developer account) */}
           <button
             type="button"
-            onClick={() => { window.location.href = `${API_ORIGIN}/api/v1/auth/apple`; }}
+            onClick={() => { window.location.href = `${API_BASE_URL}/auth/apple`; }}
             style={{
               width: '100%', background: '#1a1a1a', color: 'white',
               border: '1px solid #111', borderRadius: 14, padding: '17px 20px',
@@ -227,7 +227,7 @@ export default function LoginPage() {
 
           {/* Google — redirects to real OAuth flow */}
           <a
-            href={`${API_ORIGIN}/api/v1/auth/google`}
+            href={`${API_BASE_URL}/auth/google`}
             style={{
               width: '100%', background: '#ffffff', color: '#111827',
               border: '1px solid #e5e7eb', borderRadius: 14, padding: '17px 20px',

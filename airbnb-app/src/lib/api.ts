@@ -4,11 +4,19 @@ const DEFAULT_API_URL = import.meta.env.PROD
 
 const rawApiUrl = import.meta.env.VITE_API_URL ?? DEFAULT_API_URL;
 
-export const API_BASE_URL = rawApiUrl
-  .replace(/\/+$/, '')
-  .replace(/\/api\/v1$/, '') + '/api/v1';
+const stripApiVersion = (url: string) =>
+  url
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/(?:\/api\/v1)+$/i, '');
 
-export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, '');
+const normalizeApiPath = (path: string) =>
+  `/${path.replace(/^\/+/, '').replace(/^(?:api\/v1\/)+/i, '')}`;
+
+export const API_ORIGIN = stripApiVersion(rawApiUrl);
+export const API_BASE_URL = `${API_ORIGIN}/api/v1`;
+
+export const apiUrl = (path: string) => `${API_BASE_URL}${normalizeApiPath(path)}`;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
@@ -17,10 +25,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!isFormData && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(`Cannot reach the API at ${API_BASE_URL}`);
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('token');

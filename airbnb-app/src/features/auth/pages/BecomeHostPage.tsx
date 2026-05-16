@@ -7,7 +7,7 @@ import {
   FiDollarSign, FiAlertCircle,
 } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import { Navbar } from '../../../shared/components/Navbar';
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -91,13 +91,11 @@ const TOTAL_STEPS = 7;
 const accent = '#ff5722';
 
 /* ── Upload helper ──────────────────────────────────────────────────── */
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
-
 async function uploadPhotos(listingId: string, files: File[]) {
   const token = localStorage.getItem('token');
   const formData = new FormData();
   files.forEach((f) => formData.append('photos', f));
-  const res = await fetch(`${BASE_URL}/listings/${listingId}/photos`, {
+  const res = await fetch(`${API_BASE_URL}/listings/${listingId}/photos`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

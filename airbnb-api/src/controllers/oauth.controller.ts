@@ -11,11 +11,17 @@ const APPLE_CLIENT_ID = process.env["APPLE_CLIENT_ID"];
 const APPLE_TEAM_ID = process.env["APPLE_TEAM_ID"];
 const APPLE_KEY_ID = process.env["APPLE_KEY_ID"];
 const APPLE_PRIVATE_KEY = process.env["APPLE_PRIVATE_KEY"];
-const FRONTEND_URL  = process.env["FRONTEND_URL"] || "http://localhost:5173";
-const API_URL       = process.env["API_URL"]      || "http://localhost:3000";
+const normalizeOrigin = (url: string) =>
+  url
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/(?:\/api\/v1)+$/i, "");
 
-const REDIRECT_URI  = `${API_URL}/api/v1/auth/google/callback`;
-const APPLE_REDIRECT_URI = `${API_URL}/api/v1/auth/apple/callback`;
+const FRONTEND_URL  = (process.env["FRONTEND_URL"] || "http://localhost:5173").replace(/\/+$/, "");
+const API_ORIGIN    = normalizeOrigin(process.env["API_URL"] || "http://localhost:3000");
+
+const REDIRECT_URI  = `${API_ORIGIN}/api/v1/auth/google/callback`;
+const APPLE_REDIRECT_URI = `${API_ORIGIN}/api/v1/auth/apple/callback`;
 
 type OAuthProvider = "google" | "apple";
 type AppleJwk = JsonWebKey & { kid?: string };
