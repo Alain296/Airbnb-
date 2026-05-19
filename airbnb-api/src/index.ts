@@ -3,6 +3,8 @@ import express, { Request, Response, NextFunction } from "express";
 import compression from "compression";
 import morgan from "morgan";
 import cors, { CorsOptions } from "cors";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { connectDB } from "./config/prisma";
 import { setupSwagger } from "./config/swagger";
 import { validateAIConfig } from "./config/ai";
@@ -12,6 +14,7 @@ import v1Router from "./routes/v1/index";
 
 const app = express();
 const PORT = Number(process.env["PORT"]) || 3000;
+const execFileAsync = promisify(execFile);
 const configuredCorsOrigins = [
   process.env["FRONTEND_URL"],
   process.env["API_URL"],
@@ -111,8 +114,21 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+const runMigrations = async (): Promise<void> => {
+  if (process.env["NODE_ENV"] !== "production" || process.env["SKIP_MIGRATIONS"] === "true") {
+    return;
+  }
+
+  const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
+  console.log("Running database migrations before startup...");
+  const { stdout, stderr } = await execFileAsync(npxCommand, ["prisma", "migrate", "deploy"]);
+  if (stdout) console.log(stdout);
+  if (stderr) console.error(stderr);
+};
+
 const main = async (): Promise<void> => {
   try {
+    await runMigrations();
     await connectDB();
     validateAIConfig(); // Initialize AI configuration
     
