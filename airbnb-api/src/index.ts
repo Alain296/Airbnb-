@@ -2,7 +2,7 @@ import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import compression from "compression";
 import morgan from "morgan";
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
 import { connectDB } from "./config/prisma";
 import { setupSwagger } from "./config/swagger";
 import { validateAIConfig } from "./config/ai";
@@ -34,16 +34,12 @@ const allowedOrigins = new Set([
   ...configuredCorsOrigins,
 ]);
 
-const isAllowedVercelPreview = (origin: string) =>
-  /^https:\/\/airbnb-[a-z0-9-]+\.vercel\.app$/i.test(origin);
+const isAllowedVercelOrigin = (origin: string) =>
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
-// Request logging (use 'combined' format in production, 'dev' in development)
-app.use(process.env["NODE_ENV"] === "production" ? morgan("combined") : morgan("dev"));
-
-// CORS configuration for the frontend, Swagger UI, and Vercel previews
-app.use(cors({
+const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin) || isAllowedVercelPreview(origin)) {
+    if (!origin || allowedOrigins.has(origin) || isAllowedVercelOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -52,8 +48,15 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+// Request logging (use 'combined' format in production, 'dev' in development)
+app.use(process.env["NODE_ENV"] === "production" ? morgan("combined") : morgan("dev"));
+
+// CORS configuration for the frontend, Swagger UI, and Vercel deployments.
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 // Performance middleware (order matters!)
 app.use(compression()); // Enable gzip compression
