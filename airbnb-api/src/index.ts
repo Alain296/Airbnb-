@@ -15,10 +15,19 @@ import v1Router from "./routes/v1/index";
 const app = express();
 const PORT = Number(process.env["PORT"]) || 3000;
 const execFileAsync = promisify(execFile);
+
+const splitOrigins = (value?: string) =>
+  value
+    ?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean) ?? [];
+
 const configuredCorsOrigins = [
   process.env["FRONTEND_URL"],
+  process.env["BASE_URL"],
   process.env["API_URL"],
-  ...(process.env["CORS_ORIGINS"]?.split(",") ?? []),
+  ...splitOrigins(process.env["CORS_ORIGINS"]),
+  ...splitOrigins(process.env["ALLOWED_ORIGINS"]),
 ]
   .map((origin) => origin?.trim().replace(/\/+$/, ""))
   .filter((origin): origin is string => Boolean(origin));

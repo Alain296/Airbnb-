@@ -44,8 +44,11 @@ DATABASE_URL=postgresql://username:password@host:port/database
 JWT_SECRET=your-generated-jwt-secret-here
 
 # Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
 EMAIL_USER=mugaboalain56@gmail.com
 EMAIL_PASS=your-gmail-app-password
+EMAIL_FROM="Airbnb <mugaboalain56@gmail.com>"
 
 # Cloudinary
 CLOUDINARY_CLOUD_NAME=dqvgjp2cx
@@ -58,6 +61,10 @@ NODE_ENV=production
 API_URL=https://your-render-service.onrender.com
 FRONTEND_URL=https://your-vercel-app.vercel.app
 CORS_ORIGINS=https://your-vercel-app.vercel.app
+
+# Also accepted by the code for compatibility with older Render setups:
+BASE_URL=https://your-vercel-app.vercel.app
+ALLOWED_ORIGINS=https://your-vercel-app.vercel.app
 ```
 
 ---

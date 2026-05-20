@@ -5,6 +5,8 @@ declare global {
     interface Request {
       userId?: string;
       role?: Role;
+      file?: Multer.File;
+      files?: Multer.File[] | { [fieldname: string]: Multer.File[] };
     }
   }
 }

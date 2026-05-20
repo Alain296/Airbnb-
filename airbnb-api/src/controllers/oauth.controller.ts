@@ -17,7 +17,7 @@ const normalizeOrigin = (url: string) =>
     .replace(/\/+$/, "")
     .replace(/(?:\/api\/v1)+$/i, "");
 
-const FRONTEND_URL  = (process.env["FRONTEND_URL"] || "http://localhost:5173").replace(/\/+$/, "");
+const FRONTEND_URL  = (process.env["FRONTEND_URL"] || process.env["BASE_URL"] || "http://localhost:5173").replace(/\/+$/, "");
 const API_ORIGIN    = normalizeOrigin(process.env["API_URL"] || "http://localhost:3000");
 
 const REDIRECT_URI  = `${API_ORIGIN}/api/v1/auth/google/callback`;

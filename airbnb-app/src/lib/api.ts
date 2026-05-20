@@ -2,9 +2,7 @@ const DEFAULT_API_URL = import.meta.env.PROD
   ? '/api/v1'
   : 'http://localhost:3000/api/v1';
 
-const rawApiUrl = import.meta.env.PROD
-  ? DEFAULT_API_URL
-  : import.meta.env.VITE_API_URL ?? DEFAULT_API_URL;
+const rawApiUrl = import.meta.env.VITE_API_URL ?? DEFAULT_API_URL;
 
 const stripApiVersion = (url: string) =>
   url

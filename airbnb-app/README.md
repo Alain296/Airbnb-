@@ -141,7 +141,12 @@ npm run type-check
 
 ## 📝 Environment
 
-No environment variables needed. API URL is configured in `src/lib/api.ts`.
+For local development, the app defaults to `http://localhost:3000/api/v1`.
+For deployment, set this in Vercel:
+
+```env
+VITE_API_URL=https://your-render-service.onrender.com/api/v1
+```
 
 ## 🎯 Key Components
 

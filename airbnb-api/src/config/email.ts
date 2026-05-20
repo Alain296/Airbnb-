@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 const EMAIL_HOST = process.env.EMAIL_HOST || "smtp.gmail.com";
 const EMAIL_PORT = Number(process.env.EMAIL_PORT) || 587;
 const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_PASS = process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD;
 const EMAIL_FROM = process.env.EMAIL_FROM || "Airbnb <noreply@airbnb.com>";
 
 // Create transporter once at module load

@@ -146,12 +146,12 @@ Common backend variables:
 ```env
 DATABASE_URL="postgresql://username:password@localhost:5432/airbnb_db"
 JWT_SECRET="your-access-token-secret"
-JWT_REFRESH_SECRET="your-refresh-token-secret"
-JWT_EXPIRES_IN="15m"
-JWT_REFRESH_EXPIRES_IN="7d"
+JWT_EXPIRES_IN="7d"
 PORT=3000
 NODE_ENV="development"
-CLIENT_URL="http://localhost:5173"
+API_URL="http://localhost:3000"
+FRONTEND_URL="http://localhost:5173"
+CORS_ORIGINS="http://localhost:5173"
 
 CLOUDINARY_CLOUD_NAME="your-cloudinary-cloud-name"
 CLOUDINARY_API_KEY="your-cloudinary-api-key"
@@ -174,6 +174,12 @@ For the frontend, create `airbnb-app/.env` only when you need to override the de
 
 ```env
 VITE_API_URL="http://localhost:3000/api/v1"
+```
+
+For Vercel production, set `VITE_API_URL` to your Render backend, for example:
+
+```env
+VITE_API_URL="https://your-render-service.onrender.com/api/v1"
 ```
 
 Never commit real `.env` files or API keys.
@@ -270,7 +276,7 @@ Backend deployment:
 Frontend deployment:
 
 - Use Vercel, Netlify, or another static hosting provider.
-- Set `VITE_API_URL` to the deployed API URL.
+- Set `VITE_API_URL` to the deployed API URL, including `/api/v1`.
 - Build with `npm run build`.
 - Deploy the `dist` folder.
 
@@ -289,4 +295,3 @@ More detailed notes are available inside the app folders, including:
 ## Author
 
 Created by [Alain296](https://github.com/Alain296).
-
